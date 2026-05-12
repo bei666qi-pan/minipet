@@ -3,7 +3,7 @@ import { buildProactiveSpeechMessages, canUseSelectedFiles, isInQuietHours, shou
 
 describe("proactive speech policy", () => {
   it("respects quiet hours and cooldown for normal speech", () => {
-    const now = new Date("2026-05-12T23:30:00+08:00");
+    const now = new Date(2026, 4, 12, 23, 30, 0);
     expect(isInQuietHours(now, "23:00", "08:00")).toBe(true);
     expect(
       shouldSpeak({
