@@ -1,0 +1,35 @@
+appId: cn.zhaozhao.partner
+productName: 爪爪伙伴
+directories:
+  output: release
+files:
+  - dist-main/**
+  - dist/renderer/**
+  - package.json
+asar: true
+win:
+  signAndEditExecutable: false
+  forceCodeSigning: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: dir
+      arch:
+        - x64
+  artifactName: ZhaozhaoPartner-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 爪爪伙伴
+  installerLanguages:
+    - zh_CN
+extraResources:
+  - from: design
+    to: design
+    filter:
+      - "**/*"

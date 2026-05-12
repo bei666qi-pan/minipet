@@ -1,0 +1,49 @@
+{
+  "name": "minipet-openclaw-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "爪爪伙伴 - Windows-first Chinese desktop companion.",
+  "main": "dist-main/main.js",
+  "author": "MiniPet",
+  "license": "MIT",
+  "packageManager": "pnpm@10.26.1",
+  "scripts": {
+    "dev": "pnpm run build:main && concurrently -k -n vite,electron \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build",
+    "build": "pnpm run build:renderer && pnpm run build:main",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
+    "test": "vitest run",
+    "dist:dir": "pnpm run build && electron-builder --dir",
+    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "docx": "^9.6.1",
+    "lucide-react": "^0.561.0",
+    "pptxgenjs": "^4.0.1",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.0.15",
+    "wait-on": "^9.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "electron-winstaller"
+    ]
+  }
+}
