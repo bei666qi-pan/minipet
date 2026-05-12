@@ -1,4 +1,4 @@
-import { Copy, Maximize2 } from "lucide-react";
+import { Copy, Maximize2, Minimize2 } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { useTaskStore } from "../store/taskStore";
@@ -11,15 +11,15 @@ export function SpeechBubble() {
   const text = activeTask?.result || activeTask?.error || bubbleText;
 
   return (
-    <aside className={`speech-bubble ${expanded ? "expanded" : ""}`}>
+    <aside className={`speech-bubble no-drag ${expanded ? "expanded" : ""}`}>
       <div className="bubble-header">
         <strong>{activeTask ? activeTask.title : "MiniPet"}</strong>
         <div>
           <button title="复制" onClick={() => void navigator.clipboard.writeText(text)}>
             <Copy size={14} />
           </button>
-          <button title="展开" onClick={() => setExpanded(!expanded)}>
-            <Maximize2 size={14} />
+          <button title={expanded ? "收起" : "展开"} onClick={() => setExpanded(!expanded)}>
+            {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
         </div>
       </div>

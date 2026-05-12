@@ -3,17 +3,19 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 export type PetState =
-  | "idle"
+  | "idle_welcome"
   | "listening"
   | "thinking"
-  | "searching"
-  | "making_ppt"
-  | "browsing"
-  | "file_working"
-  | "success"
-  | "error"
-  | "sleeping"
-  | "warning";
+  | "working_guide"
+  | "success_cheer"
+  | "idle_calm"
+  | "sleepy_rest"
+  | "shy_smile"
+  | "surprised_alert"
+  | "apology_sad"
+  | "reminder_warning"
+  | "laptop_working"
+  | "dragging";
 
 export interface PetAsset {
   id: string;
@@ -33,20 +35,50 @@ export interface AssetManifest {
   mapping: Partial<Record<PetState, string>>;
 }
 
+export const PET_STATE_KEYS: PetState[] = [
+  "idle_welcome",
+  "listening",
+  "thinking",
+  "working_guide",
+  "success_cheer",
+  "idle_calm",
+  "sleepy_rest",
+  "shy_smile",
+  "surprised_alert",
+  "apology_sad",
+  "reminder_warning",
+  "laptop_working",
+  "dragging"
+];
+
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
+const LEGACY_STATE_ALIASES: Record<string, PetState> = {
+  idle: "idle_welcome",
+  searching: "laptop_working",
+  making_ppt: "working_guide",
+  browsing: "laptop_working",
+  file_working: "laptop_working",
+  success: "success_cheer",
+  error: "apology_sad",
+  sleeping: "sleepy_rest",
+  warning: "reminder_warning"
+};
+
 const STATE_KEYWORDS: Array<[PetState, RegExp]> = [
-  ["idle", /idle[_-\s]*(welcome|calm)?|welcome|默认|空闲|待机/i],
+  ["dragging", /pet[_-\s]*dragging|dragging|拖拽|拖动/i],
+  ["idle_calm", /idle[_-\s]*calm|calm|安静|待机|低打扰/i],
+  ["idle_welcome", /idle[_-\s]*welcome|welcome|默认|空闲|欢迎/i],
   ["listening", /listening|listen|mic|voice|倾听|语音|输入/i],
-  ["thinking", /thinking|think|plan|思考|分析/i],
-  ["searching", /search|web|联网|搜索/i],
-  ["making_ppt", /ppt|slide|slides|presentation|演示|汇报/i],
-  ["browsing", /browser|browse|web|网页|浏览器/i],
-  ["file_working", /file|document|working[_-\s]*guide|laptop|文件|电脑|整理|工作/i],
-  ["success", /success|cheer|done|完成|成功|庆祝/i],
-  ["error", /error|apology|sad|fail|失败|道歉|委屈/i],
-  ["sleeping", /sleep|sleepy|rest|night|休息|困/i],
-  ["warning", /warning|alert|surprise|reminder|提醒|警告|惊讶/i]
+  ["thinking", /thinking|think|plan|分析|规划|思考/i],
+  ["working_guide", /working[_-\s]*guide|guide|board|指示|讲解|计划/i],
+  ["success_cheer", /success|cheer|done|完成|成功|庆祝|鼓励/i],
+  ["sleepy_rest", /sleep|sleepy|rest|night|困倦|休息|夜间/i],
+  ["shy_smile", /shy|smile|亲和|害羞|夸奖|初次见面/i],
+  ["surprised_alert", /surprised|surprise|alert|异常|惊讶|突然|问题/i],
+  ["apology_sad", /apology|sorry|sad|fail|error|失败|道歉|委屈|权限不足/i],
+  ["reminder_warning", /reminder|warning|warn|高危|确认|提醒|不要忘记/i],
+  ["laptop_working", /laptop|computer|openclaw|file|document|整理|电脑|工作|总结/i]
 ];
 
 export function defaultAssetDirectory(projectRoot = process.cwd()): string {
@@ -55,7 +87,12 @@ export function defaultAssetDirectory(projectRoot = process.cwd()): string {
 
 export function guessPetState(fileName: string): PetState {
   const hit = STATE_KEYWORDS.find(([, pattern]) => pattern.test(fileName));
-  return hit?.[0] ?? "idle";
+  return hit?.[0] ?? "idle_welcome";
+}
+
+export function normalizePetStateKey(key: string): PetState | undefined {
+  if ((PET_STATE_KEYS as string[]).includes(key)) return key as PetState;
+  return LEGACY_STATE_ALIASES[key];
 }
 
 export function makeAssetId(absolutePath: string): string {
@@ -79,7 +116,7 @@ export class AssetManager {
     mapping: {}
   };
 
-  async scan(directory = this.manifest.directory, savedMapping: Partial<Record<PetState, string>> = {}): Promise<AssetManifest> {
+  async scan(directory = this.manifest.directory, savedMapping: Record<string, string> = {}): Promise<AssetManifest> {
     const resolvedDirectory = path.resolve(directory);
     const entries = await fs.readdir(resolvedDirectory, { withFileTypes: true }).catch(() => []);
     const assets: PetAsset[] = [];
@@ -129,31 +166,19 @@ export class AssetManager {
     return found;
   }
 
-  private buildMapping(assets: PetAsset[], savedMapping: Partial<Record<PetState, string>>): Partial<Record<PetState, string>> {
+  private buildMapping(assets: PetAsset[], savedMapping: Record<string, string>): Partial<Record<PetState, string>> {
     const mapping: Partial<Record<PetState, string>> = {};
     const assetIds = new Set(assets.map((asset) => asset.id));
-    for (const [state, assetId] of Object.entries(savedMapping) as Array<[PetState, string]>) {
-      if (assetIds.has(assetId)) mapping[state] = assetId;
+    for (const [state, assetId] of Object.entries(savedMapping)) {
+      const normalized = normalizePetStateKey(state);
+      if (normalized && assetIds.has(assetId) && !mapping[normalized]) mapping[normalized] = assetId;
     }
     for (const asset of assets) {
       if (!mapping[asset.stateGuess]) mapping[asset.stateGuess] = asset.id;
     }
     if (assets[0]) {
-      const fallback = assets[0].id;
-      const states: PetState[] = [
-        "idle",
-        "listening",
-        "thinking",
-        "searching",
-        "making_ppt",
-        "browsing",
-        "file_working",
-        "success",
-        "error",
-        "sleeping",
-        "warning"
-      ];
-      for (const state of states) {
+      const fallback = mapping.idle_welcome ?? assets[0].id;
+      for (const state of PET_STATE_KEYS) {
         if (!mapping[state]) mapping[state] = fallback;
       }
     }

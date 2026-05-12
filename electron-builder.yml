@@ -1,5 +1,5 @@
-appId: cn.zhaozhao.partner
-productName: 爪爪伙伴
+appId: cn.versecraft.minipet
+productName: MiniPet
 directories:
   output: release
 files:
@@ -17,7 +17,7 @@ win:
     - target: dir
       arch:
         - x64
-  artifactName: ZhaozhaoPartner-${version}-${arch}.${ext}
+  artifactName: MiniPetSetup.${ext}
 nsis:
   oneClick: false
   perMachine: false
@@ -25,7 +25,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: 爪爪伙伴
+  runAfterFinish: true
+  shortcutName: MiniPet
   installerLanguages:
     - zh_CN
 extraResources:

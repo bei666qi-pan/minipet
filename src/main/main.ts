@@ -1,7 +1,8 @@
-import { app, dialog, ipcMain, protocol, shell, type BrowserWindow, type IpcMainInvokeEvent, type OpenDialogOptions } from "electron";
+import { app, dialog, ipcMain, Menu, protocol, shell, type BrowserWindow, type IpcMainInvokeEvent, type OpenDialogOptions } from "electron";
 import path from "node:path";
 import { AssetManager, readAssetBytes } from "./assetManager";
 import { CapabilityRouter } from "./capabilities/CapabilityRouter";
+import { MiniPetCloudClient } from "./cloud/MiniPetCloudClient";
 import { ConfigStore } from "./configStore";
 import { CoreManager } from "./core/CoreManager";
 import { RuntimeInstaller } from "./core/RuntimeInstaller";
@@ -16,7 +17,7 @@ import { assertTrustedSender, type IpcChannel } from "./security/ipcGuard";
 import { validateExternalUrl } from "./security/urlGuard";
 import { SecureStore, type SecretKey } from "./secureStore";
 import { createTray, type TrayActions } from "./trayManager";
-import { createMainWindow } from "./windowManager";
+import { createMainWindow, createSettingsWindow } from "./windowManager";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -40,14 +41,16 @@ const runtimeInstaller = new RuntimeInstaller();
 const coreManager = new CoreManager(runtimeInstaller, openClaw, configStore, secureStore, permissionGate);
 const capabilityRouter = new CapabilityRouter();
 const outputManager = new OutputManager();
+const cloudClient = new MiniPetCloudClient(configStore, secureStore);
 
 let mainWindow: BrowserWindow | undefined;
+let settingsWindow: BrowserWindow | undefined;
 let mainTray: ReturnType<typeof createTray> | undefined;
 let isQuitting = false;
 
 function handle(channel: IpcChannel, listener: (event: IpcMainInvokeEvent, payload: unknown) => Promise<unknown> | unknown): void {
   ipcMain.handle(channel, async (event, payload) => {
-    assertTrustedSender(event, getMainWindow()?.webContents);
+    assertTrustedSender(event, [getMainWindow()?.webContents, getSettingsWindow()?.webContents]);
     return listener(event, payload);
   });
 }
@@ -62,6 +65,7 @@ app.whenReady().then(async () => {
     show: showMainWindow,
     hide: hideMainWindow,
     toggle: toggleMainWindow,
+    openSettings: showSettingsWindow,
     setAlwaysOnTop: (enabled) => getOrCreateMainWindow().setAlwaysOnTop(enabled),
     isAlwaysOnTop: () => getMainWindow()?.isAlwaysOnTop() ?? true,
     quit: () => {
@@ -98,6 +102,11 @@ function getMainWindow(): BrowserWindow | undefined {
   return mainWindow;
 }
 
+function getSettingsWindow(): BrowserWindow | undefined {
+  if (!isUsableWindow(settingsWindow)) settingsWindow = undefined;
+  return settingsWindow;
+}
+
 function getOrCreateMainWindow(): BrowserWindow {
   const existing = getMainWindow();
   if (existing) return existing;
@@ -114,10 +123,32 @@ function getOrCreateMainWindow(): BrowserWindow {
   return window;
 }
 
+function getOrCreateSettingsWindow(): BrowserWindow {
+  const existing = getSettingsWindow();
+  if (existing) return existing;
+  const window = createSettingsWindow();
+  settingsWindow = window;
+  window.on("closed", () => {
+    if (settingsWindow === window) settingsWindow = undefined;
+  });
+  return window;
+}
+
 function showMainWindow(): void {
   const window = getOrCreateMainWindow();
   window.show();
   window.focus();
+}
+
+function showSettingsWindow(): void {
+  const window = getOrCreateSettingsWindow();
+  if (!window.isVisible()) window.show();
+  window.focus();
+}
+
+function closeSettingsWindow(): void {
+  const window = getSettingsWindow();
+  if (window) window.close();
 }
 
 function hideMainWindow(): void {
@@ -129,6 +160,21 @@ function toggleMainWindow(): void {
   const window = getOrCreateMainWindow();
   if (window.isVisible()) window.hide();
   else showMainWindow();
+}
+
+function openPetContextMenu(): void {
+  const window = getMainWindow();
+  if (!window) return;
+  Menu.buildFromTemplate([
+    {
+      label: "打开设置",
+      click: showSettingsWindow
+    },
+    {
+      label: "隐藏桌宠",
+      click: hideMainWindow
+    }
+  ]).popup({ window });
 }
 
 function sendToRenderer(channel: "openclaw:event" | "openclaw:status" | "core:progress", payload: unknown): void {
@@ -174,7 +220,7 @@ function registerIpc(): void {
 
   handle("app:set-secret", async (_event, payload) => {
     const { key, value, persist } = payload as { key: SecretKey; value: string; persist?: boolean };
-    if (!["openaiApiKey", "openclawToken"].includes(key)) throw new Error("未知密钥类型。");
+    if (!["openaiApiKey", "openclawToken", "cloudDeviceToken"].includes(key)) throw new Error("未知密钥类型。");
     return secureStore.setSecret(key, value, persist ?? true);
   });
 
@@ -253,7 +299,7 @@ function registerIpc(): void {
       if (request.method === "chat.send") {
         return { permission: decision, result: await openClawMock.chat(request.params as never) };
       }
-      return { permission: decision, error: "这个任务需要先准备智能核心。你也可以先和爪爪普通聊天。" };
+      return { permission: decision, error: "这个任务需要先准备智能核心。你也可以先和 MiniPet 普通聊天。" };
     }
     const result =
       request.method === "chat.send"
@@ -271,10 +317,16 @@ function registerIpc(): void {
       prompt: messages.map((item) => item.content).join("\n")
     });
     if (!decision.allowed) return { permission: decision, error: decision.reason };
+    if (settings.aiMode === "cloud") {
+      const result = await cloudClient.chat(messages, app.getVersion());
+      return { permission: decision, result: redactSecrets(result) };
+    }
+    const apiKey = await secureStore.getSecret("openaiApiKey");
+    if (!apiKey) return { permission: decision, error: "需要先在高级自带模型模式中保存 API Key。" };
     const result = await llmClient.chat(
       {
         baseUrl: settings.openAIBaseUrl,
-        apiKey: await secureStore.getSecret("openaiApiKey"),
+        apiKey,
         model: settings.openAIModel
       },
       messages
@@ -327,15 +379,26 @@ function registerIpc(): void {
       });
       openClawResult = result;
       text = result.text || "任务已经交给智能核心，后续进度会显示在记录里。";
+    } else if (settings.aiMode === "cloud") {
+      const result = await cloudClient.chat(
+        [
+          { role: "system", content: "你是 MiniPet 桌面陪伴助手，请用简短、清楚、中文的新手友好语气回答。" },
+          { role: "user", content: request.input }
+        ],
+        app.getVersion()
+      );
+      text = result.text;
     } else {
+      const apiKey = await secureStore.getSecret("openaiApiKey");
+      if (!apiKey) return { route, needsModelAuthorization: true };
       const result = await llmClient.chat(
         {
           baseUrl: settings.openAIBaseUrl,
-          apiKey: await secureStore.getSecret("openaiApiKey"),
+          apiKey,
           model: settings.openAIModel
         },
         [
-          { role: "system", content: "你是爪爪伙伴，请用简短、清楚、中文的新手友好语气回答。" },
+          { role: "system", content: "你是 MiniPet 桌面陪伴助手，请用简短、清楚、中文的新手友好语气回答。" },
           { role: "user", content: request.input }
         ]
       );
@@ -394,6 +457,30 @@ function registerIpc(): void {
   handle("window:show", async () => {
     showMainWindow();
     return { shown: true };
+  });
+
+  handle("window:move-by", async (_event, payload) => {
+    const { dx, dy } = (payload ?? {}) as { dx?: number; dy?: number };
+    const window = getMainWindow();
+    if (!window) return { moved: false };
+    const [x, y] = window.getPosition();
+    window.setPosition(x + Math.round(Number(dx) || 0), y + Math.round(Number(dy) || 0), false);
+    return { moved: true };
+  });
+
+  handle("window:open-settings", async () => {
+    showSettingsWindow();
+    return { opened: true };
+  });
+
+  handle("window:close-settings", async () => {
+    closeSettingsWindow();
+    return { closed: true };
+  });
+
+  handle("window:open-pet-menu", async () => {
+    openPetContextMenu();
+    return { opened: true };
   });
 
   handle("dialog:select-directory", async () => {

@@ -19,8 +19,8 @@ export function AssetMapper() {
   return (
     <section className="panel-section">
       <div className="section-title">
-        <Images size={17} />
-        <span>素材映射</span>
+        <Images size={18} />
+        <span>桌宠贴图映射</span>
       </div>
       <div className="toolbar-row">
         <button onClick={() => void selectDirectory()}>
@@ -35,7 +35,10 @@ export function AssetMapper() {
         <div className="asset-map-grid">
           {PET_STATES.map((state) => (
             <label className="field compact" key={state.key}>
-              <span>{state.label}</span>
+              <span>
+                {state.label}
+                <small>{state.fileName}</small>
+              </span>
               <select value={assets.mapping[state.key] ?? ""} onChange={(event) => void setMapping(state.key, event.target.value)}>
                 {assets.assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
@@ -48,7 +51,7 @@ export function AssetMapper() {
           ))}
         </div>
       ) : (
-        <p className="hint">没有扫描到图片。MiniPet 会使用 CSS 占位宠物。</p>
+        <p className="hint">没有扫描到图片，MiniPet 会使用 CSS 占位桌宠。</p>
       )}
     </section>
   );

@@ -11,16 +11,20 @@
     "dev": "pnpm run build:main && concurrently -k -n vite,electron \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
-    "build": "pnpm run build:renderer && pnpm run build:main",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build": "pnpm run build:renderer && pnpm run build:main && pnpm run build:server",
+    "start:server": "node dist-server/index.js",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
     "dist:dir": "pnpm run build && electron-builder --dir",
-    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis"
+    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis",
+    "release:upload": "node scripts/publish-download-artifact.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
     "docx": "^9.6.1",
     "lucide-react": "^0.561.0",
+    "pg": "^8.20.0",
     "pptxgenjs": "^4.0.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
@@ -28,6 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.3",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "concurrently": "^9.2.1",

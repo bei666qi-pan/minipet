@@ -12,7 +12,7 @@ export function SafetyModeSwitch() {
   return (
     <section className="panel-section">
       <div className="section-title">
-        {mode === "full" ? <ShieldAlert size={17} /> : <Shield size={17} />}
+        {mode === "full" ? <ShieldAlert size={18} /> : <Shield size={18} />}
         <span>守护模式</span>
       </div>
       <div className="segmented">
@@ -24,7 +24,7 @@ export function SafetyModeSwitch() {
       </div>
       <p className="hint">{description(mode)}</p>
       <label className="field">
-        <span>高级授权确认短语</span>
+        <span>启用完全访问前输入确认短语</span>
         <input value={phrase} onChange={(event) => setPhrase(event.target.value)} placeholder={FULL_PHRASE} />
       </label>
       <label className="checkbox-line">
@@ -46,7 +46,7 @@ async function switchMode(mode: PermissionMode, phrase: string, update: (patch: 
 }
 
 function modeLabel(mode: PermissionMode): string {
-  return { demo: "体验", safe: "守护", assisted: "协助", full: "高级" }[mode];
+  return { demo: "体验", safe: "守护", assisted: "协助", full: "完全" }[mode];
 }
 
 function description(mode: PermissionMode): string {
@@ -54,6 +54,6 @@ function description(mode: PermissionMode): string {
     demo: "体验模式：只演示界面和普通聊天。",
     safe: "守护模式：适合第一次使用。会阻止删除文件、提交表单、安装能力等高风险操作。",
     assisted: "协助模式：允许更多任务，但写文件、下载、填写表单等操作需要确认。",
-    full: "高级模式：可能操作文件、浏览器和系统工具。高风险动作仍需二次确认。"
+    full: "完全模式：可操作文件、浏览器和系统工具。高风险动作仍需要二次确认。"
   }[mode];
 }

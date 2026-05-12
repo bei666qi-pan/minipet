@@ -1,15 +1,27 @@
 import { create } from "zustand";
 import type { PetState } from "./settingsStore";
 
+export interface TalkTurn {
+  role: "user" | "assistant";
+  text: string;
+  createdAt: string;
+}
+
 interface AppState {
   petState: PetState;
   bubbleText: string;
+  talkOpen: boolean;
+  talkLastInteractionAt: number;
   commandOpen: boolean;
   settingsOpen: boolean;
   quickOpen: boolean;
   selectedFiles: string[];
+  recentTalks: TalkTurn[];
   setPetState: (state: PetState) => void;
   say: (text: string, state?: PetState) => void;
+  setTalkOpen: (open: boolean) => void;
+  touchTalkPanel: () => void;
+  rememberTalk: (turn: Omit<TalkTurn, "createdAt">) => void;
   setCommandOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setQuickOpen: (open: boolean) => void;
@@ -18,20 +30,36 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  petState: "idle",
-  bubbleText: "你好，我是爪爪。你可以直接说：帮我做演示、写论文、找资料或整理文件。",
+  petState: "idle_welcome",
+  bubbleText: "你好，我是 MiniPet。点一下我，就能和我说话。",
+  talkOpen: false,
+  talkLastInteractionAt: Date.now(),
   commandOpen: false,
   settingsOpen: false,
   quickOpen: false,
   selectedFiles: [],
+  recentTalks: [],
   setPetState: (petState) => set({ petState }),
-  say: (bubbleText, petState) => set((state) => ({ bubbleText, petState: petState ?? state.petState })),
-  setCommandOpen: (commandOpen) => set({ commandOpen }),
+  say: (bubbleText, petState) =>
+    set((state) => ({
+      bubbleText,
+      petState: petState ?? state.petState,
+      recentTalks: [...state.recentTalks, { role: "assistant" as const, text: bubbleText, createdAt: new Date().toISOString() }].slice(-8)
+    })),
+  setTalkOpen: (talkOpen) => set({ talkOpen, talkLastInteractionAt: Date.now() }),
+  touchTalkPanel: () => set({ talkLastInteractionAt: Date.now() }),
+  rememberTalk: (turn) =>
+    set((state) => ({
+      recentTalks: [...state.recentTalks, { ...turn, createdAt: new Date().toISOString() }].slice(-8)
+    })),
+  setCommandOpen: (commandOpen) =>
+    set(commandOpen ? { commandOpen, talkOpen: true, talkLastInteractionAt: Date.now() } : { commandOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setQuickOpen: (quickOpen) => set({ quickOpen }),
   addSelectedFiles: (files) =>
     set((state) => ({
-      selectedFiles: Array.from(new Set([...state.selectedFiles, ...files])).slice(0, 12)
+      selectedFiles: Array.from(new Set([...state.selectedFiles, ...files])).slice(0, 12),
+      talkLastInteractionAt: Date.now()
     })),
-  clearSelectedFiles: () => set({ selectedFiles: [] })
+  clearSelectedFiles: () => set({ selectedFiles: [], talkLastInteractionAt: Date.now() })
 }));

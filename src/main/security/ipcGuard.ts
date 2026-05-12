@@ -22,6 +22,10 @@ export const IPC_CHANNELS = [
   "window:set-click-through",
   "window:hide",
   "window:show",
+  "window:move-by",
+  "window:open-settings",
+  "window:close-settings",
+  "window:open-pet-menu",
   "dialog:select-directory",
   "dialog:select-files",
   "shell:open-path",
@@ -36,8 +40,13 @@ export function isAllowedIpcChannel(channel: string): channel is IpcChannel {
   return channelSet.has(channel);
 }
 
-export function assertTrustedSender(event: IpcMainInvokeEvent, mainWebContents: WebContents | undefined): void {
-  if (!mainWebContents || event.sender.id !== mainWebContents.id) {
+export function assertTrustedSender(event: IpcMainInvokeEvent, trustedWebContents: WebContents | Array<WebContents | undefined> | undefined): void {
+  const trusted = Array.isArray(trustedWebContents)
+    ? trustedWebContents.filter((webContents): webContents is WebContents => Boolean(webContents))
+    : trustedWebContents
+      ? [trustedWebContents]
+      : [];
+  if (!trusted.some((webContents) => webContents.id === event.sender.id)) {
     throw new Error("IPC 请求来源不可信。");
   }
 }

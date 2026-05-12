@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-main
+dist-server
+release
+.runtime-data
+.git
+*.log

@@ -2,17 +2,19 @@ import { create } from "zustand";
 
 export type PermissionMode = "demo" | "safe" | "assisted" | "full";
 export type PetState =
-  | "idle"
+  | "idle_welcome"
   | "listening"
   | "thinking"
-  | "searching"
-  | "making_ppt"
-  | "browsing"
-  | "file_working"
-  | "success"
-  | "error"
-  | "sleeping"
-  | "warning";
+  | "working_guide"
+  | "success_cheer"
+  | "idle_calm"
+  | "sleepy_rest"
+  | "shy_smile"
+  | "surprised_alert"
+  | "apology_sad"
+  | "reminder_warning"
+  | "laptop_working"
+  | "dragging";
 
 export interface MiniPetSettings {
   onboarded: boolean;
@@ -22,6 +24,9 @@ export interface MiniPetSettings {
   openClawSessionKey: string;
   openAIBaseUrl: string;
   openAIModel: string;
+  aiMode: "cloud" | "custom";
+  cloudApiOrigin: string;
+  cloudDeviceId: string;
   permissionMode: PermissionMode;
   adminAdvanced: boolean;
   theme: "light" | "dark" | "system";
@@ -35,6 +40,11 @@ export interface MiniPetSettings {
   advancedUnlocked: boolean;
   outputDirectory: string;
   voiceInputEnabled: boolean;
+  proactiveSpeechEnabled: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  talkAutoHideSeconds: number;
 }
 
 export interface PetAsset {
@@ -57,6 +67,7 @@ export interface AssetManifest {
 export interface SecretStatus {
   openaiApiKey: boolean;
   openclawToken: boolean;
+  cloudDeviceToken: boolean;
   encryptionAvailable: boolean;
 }
 
@@ -148,6 +159,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
 export function getAssetUrlForState(manifest: AssetManifest | undefined, state: PetState): string | undefined {
   if (!manifest?.assets.length) return undefined;
-  const id = manifest.mapping[state] ?? manifest.mapping.idle ?? manifest.assets[0]?.id;
+  const id = manifest.mapping[state] ?? manifest.mapping.idle_welcome ?? manifest.assets[0]?.id;
   return manifest.assets.find((asset) => asset.id === id)?.url ?? manifest.assets[0]?.url;
 }

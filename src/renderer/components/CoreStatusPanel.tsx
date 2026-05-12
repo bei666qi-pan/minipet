@@ -9,7 +9,7 @@ export function CoreStatusPanel() {
   return (
     <section className="panel-section gateway-status">
       <div className="section-title">
-        {connected ? <Plug size={17} /> : <WifiOff size={17} />}
+        {connected ? <Plug size={18} /> : <WifiOff size={18} />}
         <span>智能核心状态</span>
       </div>
       <div className="status-grid">

@@ -14,6 +14,9 @@ export interface MiniPetSettings {
   openClawSessionKey: string;
   openAIBaseUrl: string;
   openAIModel: string;
+  aiMode: "cloud" | "custom";
+  cloudApiOrigin: string;
+  cloudDeviceId: string;
   permissionMode: PermissionMode;
   adminAdvanced: boolean;
   theme: "light" | "dark" | "system";
@@ -27,6 +30,11 @@ export interface MiniPetSettings {
   advancedUnlocked: boolean;
   outputDirectory: string;
   voiceInputEnabled: boolean;
+  proactiveSpeechEnabled: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  talkAutoHideSeconds: number;
 }
 
 const DEFAULT_PROJECT_ROOT = "D:\\minipet";
@@ -45,6 +53,9 @@ export const DEFAULT_SETTINGS: MiniPetSettings = {
   openClawSessionKey: "main",
   openAIBaseUrl: "https://newkey.versecraft.cn/",
   openAIModel: "minipet",
+  aiMode: "cloud",
+  cloudApiOrigin: "https://api.minipet.versecraft.cn",
+  cloudDeviceId: "",
   permissionMode: "safe",
   adminAdvanced: false,
   theme: "light",
@@ -57,7 +68,12 @@ export const DEFAULT_SETTINGS: MiniPetSettings = {
   coreAutoStart: true,
   advancedUnlocked: false,
   outputDirectory: defaultOutputDirectory(),
-  voiceInputEnabled: true
+  voiceInputEnabled: true,
+  proactiveSpeechEnabled: true,
+  quietHoursEnabled: true,
+  quietHoursStart: "23:00",
+  quietHoursEnd: "08:00",
+  talkAutoHideSeconds: 30
 };
 
 export function defaultConfigDir(): string {

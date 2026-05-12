@@ -24,7 +24,7 @@ export function CoreInstallModal({ message, onCancel, onConfirm }: Props) {
             <ShieldCheck size={16} /> 安装在你的用户目录
           </span>
           <span>
-            <ShieldCheck size={16} /> 不会扫描你的全盘文件
+            <ShieldCheck size={16} /> 不会扫描全盘文件
           </span>
         </div>
         <div className="modal-actions">

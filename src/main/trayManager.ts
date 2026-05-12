@@ -4,6 +4,7 @@ export interface TrayActions {
   show: () => void;
   hide: () => void;
   toggle: () => void;
+  openSettings: () => void;
   setAlwaysOnTop: (enabled: boolean) => void;
   isAlwaysOnTop: () => boolean;
   quit: () => void;
@@ -12,32 +13,36 @@ export interface TrayActions {
 export function createTray(actions: TrayActions): Tray {
   const image = nativeImage.createEmpty();
   const tray = new Tray(image);
-  tray.setToolTip("爪爪伙伴");
+  tray.setToolTip("MiniPet");
   const rebuildMenu = () => {
     tray.setContextMenu(
       Menu.buildFromTemplate([
-      {
-        label: "显示爪爪伙伴",
-        click: actions.show
-      },
-      {
-        label: "置顶",
-        type: "checkbox",
-        checked: actions.isAlwaysOnTop(),
-        click: (item) => {
-          actions.setAlwaysOnTop(item.checked);
-          rebuildMenu();
+        {
+          label: "显示桌宠",
+          click: actions.show
+        },
+        {
+          label: "打开设置",
+          click: actions.openSettings
+        },
+        {
+          label: "置顶",
+          type: "checkbox",
+          checked: actions.isAlwaysOnTop(),
+          click: (item) => {
+            actions.setAlwaysOnTop(item.checked);
+            rebuildMenu();
+          }
+        },
+        {
+          label: "隐藏桌宠",
+          click: actions.hide
+        },
+        { type: "separator" },
+        {
+          label: "退出",
+          click: actions.quit
         }
-      },
-      {
-        label: "隐藏",
-        click: actions.hide
-      },
-      { type: "separator" },
-      {
-        label: "退出",
-        click: actions.quit
-      }
       ])
     );
   };

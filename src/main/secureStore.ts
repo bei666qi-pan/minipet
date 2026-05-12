@@ -4,7 +4,7 @@ import path from "node:path";
 import { safeStorage } from "electron";
 import { defaultConfigDir } from "./configStore";
 
-export type SecretKey = "openaiApiKey" | "openclawToken";
+export type SecretKey = "openaiApiKey" | "openclawToken" | "cloudDeviceToken";
 
 interface SecretRecord {
   encrypted: string;
@@ -72,6 +72,7 @@ export class SecureStore {
     return {
       openaiApiKey: await this.hasSecret("openaiApiKey"),
       openclawToken: await this.hasSecret("openclawToken"),
+      cloudDeviceToken: await this.hasSecret("cloudDeviceToken"),
       encryptionAvailable: this.canPersistSecurely()
     };
   }

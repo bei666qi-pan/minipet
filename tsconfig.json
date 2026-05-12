@@ -21,6 +21,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/renderer", "src/shared", "tests", "vite.config.ts"],
+  "include": ["src/renderer", "src/server", "src/shared", "tests", "vite.config.ts"],
   "references": []
 }

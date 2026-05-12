@@ -1,32 +1,35 @@
 :root {
   color-scheme: light;
-  --bg: rgba(255, 249, 251, 0.72);
-  --panel: rgba(255, 255, 255, 0.72);
-  --panel-strong: rgba(255, 255, 255, 0.92);
-  --text: #302a35;
-  --muted: #746b79;
-  --line: rgba(82, 68, 96, 0.14);
-  --brand: #e86f9d;
-  --brand-2: #64b5c8;
-  --brand-soft: rgba(232, 111, 157, 0.14);
-  --warning: #b75f18;
-  --danger: #c7354b;
+  --bg: #fffaf6;
+  --sky: #d8f3ff;
+  --petal: #ffddea;
+  --mint: #dff7ec;
+  --sun: #fff0bb;
+  --panel: rgba(255, 253, 249, 0.94);
+  --panel-strong: #ffffff;
+  --text: #302b38;
+  --muted: #736b7d;
+  --line: rgba(94, 75, 118, 0.16);
+  --brand: #e96f9a;
+  --brand-2: #5ab8cb;
+  --brand-3: #63bd91;
+  --brand-soft: rgba(233, 111, 154, 0.12);
+  --warning: #b97022;
+  --danger: #c9435c;
   --success: #2d8a61;
-  --shadow: 0 18px 52px rgba(72, 44, 82, 0.22);
-  --radius: 18px;
+  --shadow: 0 18px 38px rgba(83, 57, 102, 0.18);
+  --soft-shadow: 0 10px 24px rgba(83, 57, 102, 0.12);
+  --radius: 16px;
   font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
 }
 
 .theme-dark {
-  color-scheme: dark;
-  --bg: rgba(24, 25, 32, 0.72);
-  --panel: rgba(31, 34, 43, 0.78);
-  --panel-strong: rgba(39, 42, 52, 0.94);
-  --text: #f6eef5;
-  --muted: #b8adbb;
-  --line: rgba(255, 255, 255, 0.12);
-  --brand: #ff8db7;
-  --brand-2: #8bd7e7;
-  --brand-soft: rgba(255, 141, 183, 0.18);
-  --shadow: 0 18px 52px rgba(0, 0, 0, 0.36);
+  color-scheme: light;
+  --bg: #fffaf6;
+  --panel: rgba(255, 253, 249, 0.94);
+  --panel-strong: #ffffff;
+  --text: #302b38;
+  --muted: #736b7d;
+  --line: rgba(94, 75, 118, 0.16);
+  --shadow: 0 18px 38px rgba(83, 57, 102, 0.18);
 }
