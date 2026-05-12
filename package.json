@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
     "dist:dir": "pnpm run build && electron-builder --dir",
-    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis",
+    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis --publish never",
     "release:upload": "node scripts/publish-download-artifact.mjs"
   },
   "dependencies": {
