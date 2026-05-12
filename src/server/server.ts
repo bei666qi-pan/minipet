@@ -31,6 +31,7 @@ async function route(context: ServerContext, request: IncomingMessage, response:
   addCors(context.config, response);
   if (request.method === "OPTIONS") return empty(response, 204);
   if (request.method === "GET" && url.pathname === "/health") return json(response, 200, { ok: true, missing: missingProductionConfig(context.config) });
+  if (request.method === "GET" && url.pathname === "/v1/releases/latest") return latestRelease(context, response);
   if (request.method === "GET" && url.pathname === "/") return html(response, landingPage(context.config));
   if (request.method === "GET" && url.pathname === "/admin") return html(response, adminPage());
   if (request.method === "GET" && url.pathname === "/assets/Idle_Welcome.png") return serveAsset(response, "design/one/Idle_Welcome.png");
@@ -39,9 +40,10 @@ async function route(context: ServerContext, request: IncomingMessage, response:
     response.end();
     return;
   }
-  if (request.method === "POST" && url.pathname === "/api/device/register") return registerDevice(context, request, response);
+  if (request.method === "POST" && (url.pathname === "/v1/bootstrap" || url.pathname === "/api/device/register")) return registerDevice(context, request, response);
+  if (request.method === "GET" && url.pathname === "/v1/me/quota") return getQuota(context, request, response);
   if (request.method === "GET" && url.pathname === "/api/me") return getMe(context, request, response);
-  if (request.method === "POST" && url.pathname === "/api/chat") return chat(context, request, response);
+  if (request.method === "POST" && (url.pathname === "/v1/chat" || url.pathname === "/api/chat")) return chat(context, request, response);
   if (request.method === "POST" && url.pathname === "/api/admin/login") return adminLogin(context, request, response);
   if (request.method === "GET" && url.pathname === "/api/admin/devices") return adminListDevices(context, request, response);
   const match = /^\/api\/admin\/devices\/([^/]+)$/.exec(url.pathname);
@@ -50,13 +52,14 @@ async function route(context: ServerContext, request: IncomingMessage, response:
 }
 
 async function registerDevice(context: ServerContext, request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const body = await readJson<{ deviceId?: string; appVersion?: string; platform?: string }>(request);
-  const deviceId = sanitizeDeviceId(body.deviceId) || crypto.randomUUID();
-  const device = await context.store.upsertDevice({ id: deviceId, appVersion: body.appVersion, platform: body.platform });
+  const body = await readJson<{ device_id?: string; deviceId?: string; app_version?: string; appVersion?: string; platform?: string }>(request);
+  const deviceId = sanitizeDeviceId(body.device_id || body.deviceId) || `mp_${crypto.randomBytes(16).toString("hex")}`;
+  const device = await context.store.upsertDevice({ id: deviceId, appVersion: body.app_version || body.appVersion, platform: body.platform });
   return json(response, 200, {
     device,
     token: signDeviceToken(context.config, device.id),
     quotaRemaining: Math.max(0, device.quotaTokens - device.usedTokens),
+    quota_remaining: Math.max(0, device.quotaTokens - device.usedTokens),
     defaultQuotaTokens: DEFAULT_DEVICE_QUOTA_TOKENS
   });
 }
@@ -65,6 +68,26 @@ async function getMe(context: ServerContext, request: IncomingMessage, response:
   const device = await requireDevice(context, request);
   if (!device) return json(response, 401, { error: "unauthorized" });
   return json(response, 200, { device, quotaRemaining: Math.max(0, device.quotaTokens - device.usedTokens) });
+}
+
+async function getQuota(context: ServerContext, request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const device = await requireDevice(context, request);
+  if (!device) return json(response, 401, { error: "unauthorized" });
+  return json(response, 200, {
+    quotaTokens: device.quotaTokens,
+    usedTokens: device.usedTokens,
+    quotaRemaining: Math.max(0, device.quotaTokens - device.usedTokens),
+    disabled: device.disabled
+  });
+}
+
+function latestRelease(context: ServerContext, response: ServerResponse): void {
+  return json(response, 200, {
+    version: context.config.releaseVersion,
+    downloadUrl: `${context.config.downloadOrigin.replace(/\/+$/, "")}/MiniPetSetup.exe`,
+    notes: context.config.releaseNotes,
+    publishedAt: new Date().toISOString()
+  });
 }
 
 async function chat(context: ServerContext, request: IncomingMessage, response: ServerResponse): Promise<void> {

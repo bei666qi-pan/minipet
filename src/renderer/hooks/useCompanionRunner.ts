@@ -61,16 +61,16 @@ export function useCompanionRunner() {
       }
 
       if (response.needsModelAuthorization) {
-        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "model_auth", label: "等待配置聊天授权" });
-        setModelAuthorizationText("普通聊天需要先保存大模型授权。打开设置后，在醒目的“连接与授权”区域填写 API Key。");
-        say("我需要先拿到聊天授权，才能继续认真回答。", "reminder_warning");
+        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "model_auth", label: "等待自带模型配置" });
+        setModelAuthorizationText("自带模型模式需要先保存你自己的 API Key。你也可以切回 MiniPet 托管模式直接聊天。");
+        say("我需要先拿到你的自带模型授权，或者切回托管模式。", "reminder_warning");
         return;
       }
 
       if (response.needsCoreAuthorization) {
-        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "core_auth", label: "等待准备智能核心" });
-        setCoreAuthorizationText("这个任务需要准备智能核心和运行环境。确认后我会开始下载或启动所需能力。");
-        say("需要你同意后，我才能准备智能核心。", "reminder_warning");
+        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "core_auth", label: "等待准备高级能力" });
+        setCoreAuthorizationText("这个任务需要准备 OpenClaw 高级能力和运行环境。确认后我会开始下载或启动所需能力。");
+        say("这个任务需要你确认后，我才能准备高级能力。", "reminder_warning");
         return;
       }
 
@@ -123,15 +123,16 @@ export function useCompanionRunner() {
 
 function guessTitle(input: string): string {
   if (/ppt|演示|幻灯|汇报/i.test(input)) return "做演示";
-  if (/论文|文献|综述|初稿/i.test(input)) return "写论文";
-  if (/文件|文档|pdf|表格|整理/i.test(input)) return "整理文件";
-  if (/搜索|资料|联网|查一个|网页/i.test(input)) return "找资料";
+  if (/论文|文献|综述|初稿/i.test(input)) return "写文章";
+  if (/文件|文档|pdf|表格|整理|总结/i.test(input)) return "整理文件";
+  if (/搜索|资料|联网|查一下|网页/i.test(input)) return "找资料";
+  if (/提醒|待办|任务/i.test(input)) return "任务提醒";
   return "和 MiniPet 说话";
 }
 
 function guessRisk(input: string): RiskLevel {
   if (/删除|付款|支付|发送|提交|安装|命令/i.test(input)) return "high";
-  if (/文件|保存|下载|填写|ppt|演示|论文/i.test(input)) return "medium";
+  if (/文件|保存|下载|填写|ppt|演示|论文|总结/i.test(input)) return "medium";
   return "low";
 }
 

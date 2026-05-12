@@ -5,6 +5,7 @@ export interface TrayActions {
   hide: () => void;
   toggle: () => void;
   openSettings: () => void;
+  checkForUpdates: () => void;
   setAlwaysOnTop: (enabled: boolean) => void;
   isAlwaysOnTop: () => boolean;
   quit: () => void;
@@ -22,8 +23,12 @@ export function createTray(actions: TrayActions): Tray {
           click: actions.show
         },
         {
-          label: "打开设置",
+          label: "设置",
           click: actions.openSettings
+        },
+        {
+          label: "检查更新",
+          click: actions.checkForUpdates
         },
         {
           label: "置顶",

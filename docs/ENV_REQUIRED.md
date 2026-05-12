@@ -35,5 +35,5 @@ This machine did not have the deployment and model environment variables availab
 
 - The desktop client defaults to `https://api.minipet.versecraft.cn` and does not need NewAPI credentials.
 - NewAPI credentials must only exist on the server side.
-- Local development without `DATABASE_URL` uses `.runtime-data/server/store.json`; production should use PostgreSQL via `DATABASE_URL`.
-- To generate an admin password hash without printing the password, run a local script that imports `hashPassword()` from `src/server/auth.ts`, then store only the resulting hash in `ADMIN_PASSWORD_HASH`.
+- Local development without `DATABASE_URL` uses SQLite at `.runtime-data/backend/minipet.sqlite`; production should use PostgreSQL via `DATABASE_URL`.
+- To generate an admin password hash without printing the password, run a local script that imports `hashPassword()` from `apps/backend/src/auth.ts`, then store only the resulting hash in `ADMIN_PASSWORD_HASH`.

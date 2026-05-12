@@ -6,6 +6,7 @@ type IpcChannel =
   | "app:set-secret"
   | "app:clear-secret"
   | "app:open-external"
+  | "app:check-update"
   | "asset:scan"
   | "asset:set-directory"
   | "openclaw:connect"
@@ -16,6 +17,7 @@ type IpcChannel =
   | "companion:run-task"
   | "output:open-directory"
   | "llm:chat"
+  | "llm:test-connection"
   | "permission:evaluate"
   | "audit:read"
   | "window:set-always-on-top"
@@ -34,6 +36,6 @@ type IpcChannel =
 interface Window {
   minipet: {
     invoke<T = unknown>(channel: IpcChannel, payload?: unknown): Promise<T>;
-    on(channel: "openclaw:event" | "openclaw:status" | "core:progress", callback: (payload: unknown) => void): () => void;
+    on(channel: "openclaw:event" | "openclaw:status" | "core:progress" | "cloud:status", callback: (payload: unknown) => void): () => void;
   };
 }

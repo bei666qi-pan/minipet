@@ -3,16 +3,19 @@ import { useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
 
+const INTRO =
+  "你好，我是 MiniPet，你的桌面学习/办公搭子。你可以直接问我问题，也可以让我帮你总结资料、提醒任务。默认安全模式下，我不会自动删除文件或执行高危操作。";
+
 export function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const { settings, update } = useSettingsStore();
   const { say, setTalkOpen } = useAppStore();
-  const steps = ["点击说话", "一句话任务", "守护确认"];
+  const steps = ["点击说话", "直接使用", "安全确认"];
   if (settings?.onboarded) return null;
 
   async function finish() {
-    await update({ onboarded: true });
-    say("点一下我就能说话。我会尽量安静地陪在这里，需要时再帮你接手任务。", "idle_welcome");
+    await update({ onboarded: true, aiMode: "cloud" });
+    say(INTRO, "idle_welcome");
     setTalkOpen(true);
   }
 
@@ -26,22 +29,22 @@ export function OnboardingWizard() {
         {step === 0 ? (
           <div className="wizard-page">
             <MousePointerClick size={42} />
-            <h1>点一下桌宠，就能和我说话</h1>
-            <p>主界面只保留桌宠、气泡和同一个输入入口。入口会在闲置后自动收起，不挡你的桌面。</p>
+            <h1>点击桌宠，就能和我说话</h1>
+            <p>{INTRO}</p>
           </div>
         ) : null}
         {step === 1 ? (
           <div className="wizard-page">
             <Sparkles size={38} />
-            <h1>一句话交给我</h1>
-            <p>你可以让我查资料、做演示、写初稿或整理主动选择的文件。需要更强能力时，我会先请求授权。</p>
+            <h1>默认不用配置</h1>
+            <p>MiniPet 会使用托管模式连接官方云端。你不需要填写技术配置，也不需要理解底层技术。</p>
           </div>
         ) : null}
         {step === 2 ? (
           <div className="wizard-page">
             <ShieldCheck size={38} />
             <h1>高风险动作会先问你</h1>
-            <p>删除、付款、提交表单、发送消息等动作不会自动执行。你也可以在设置里调整守护模式。</p>
+            <p>总结文件、提醒任务、普通问答可以直接开始；删除、付款、提交表单、发送消息等高风险动作不会自动执行。</p>
           </div>
         ) : null}
         <footer>
@@ -54,7 +57,7 @@ export function OnboardingWizard() {
             </button>
           ) : (
             <button className="primary-button" onClick={() => void finish()}>
-              <CheckCircle2 size={16} /> 显示桌宠
+              <CheckCircle2 size={16} /> 开始使用
             </button>
           )}
         </footer>

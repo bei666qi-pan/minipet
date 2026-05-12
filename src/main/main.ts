@@ -47,6 +47,7 @@ let mainWindow: BrowserWindow | undefined;
 let settingsWindow: BrowserWindow | undefined;
 let mainTray: ReturnType<typeof createTray> | undefined;
 let isQuitting = false;
+let latestCloudStatus: { online: boolean; message?: string; quotaRemaining?: number } | undefined;
 
 function handle(channel: IpcChannel, listener: (event: IpcMainInvokeEvent, payload: unknown) => Promise<unknown> | unknown): void {
   ipcMain.handle(channel, async (event, payload) => {
@@ -66,6 +67,7 @@ app.whenReady().then(async () => {
     hide: hideMainWindow,
     toggle: toggleMainWindow,
     openSettings: showSettingsWindow,
+    checkForUpdates: () => void checkForUpdates(true),
     setAlwaysOnTop: (enabled) => getOrCreateMainWindow().setAlwaysOnTop(enabled),
     isAlwaysOnTop: () => getMainWindow()?.isAlwaysOnTop() ?? true,
     quit: () => {
@@ -77,6 +79,7 @@ app.whenReady().then(async () => {
   openClaw.on("event", (event) => sendToRenderer("openclaw:event", redactSecrets(event)));
   openClaw.on("status", (status) => sendToRenderer("openclaw:status", redactSecrets(status)));
   coreManager.on("progress", (status) => sendToRenderer("core:progress", redactSecrets(status)));
+  void bootstrapCloudSession();
   if (settings.coreAutoStart) void coreManager.checkAndConnect();
 });
 
@@ -171,16 +174,71 @@ function openPetContextMenu(): void {
       click: showSettingsWindow
     },
     {
+      label: "检查更新",
+      click: () => void checkForUpdates(true)
+    },
+    {
       label: "隐藏桌宠",
       click: hideMainWindow
+    },
+    { type: "separator" },
+    {
+      label: "退出",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      }
     }
   ]).popup({ window });
 }
 
-function sendToRenderer(channel: "openclaw:event" | "openclaw:status" | "core:progress", payload: unknown): void {
+function sendToRenderer(channel: "openclaw:event" | "openclaw:status" | "core:progress" | "cloud:status", payload: unknown): void {
   const window = getMainWindow();
   if (!window || window.webContents.isDestroyed()) return;
   window.webContents.send(channel, payload);
+}
+
+async function bootstrapCloudSession(): Promise<void> {
+  try {
+    if (configStore.get().aiMode !== "cloud") return;
+    const result = await cloudClient.bootstrap(app.getVersion());
+    latestCloudStatus = { online: true, quotaRemaining: result.quotaRemaining };
+  } catch {
+    latestCloudStatus = { online: false, message: "网络不可用。MiniPet 已启动，等网络恢复后就能继续对话。" };
+  }
+  sendToRenderer("cloud:status", latestCloudStatus);
+}
+
+async function checkForUpdates(showDialog: boolean): Promise<unknown> {
+  try {
+    const release = await cloudClient.getLatestRelease();
+    const current = app.getVersion();
+    const hasUpdate = release.version !== current;
+    if (showDialog) {
+      const options = {
+        type: hasUpdate ? "info" : "none",
+        title: "MiniPet 更新",
+        message: hasUpdate ? `发现新版本 ${release.version}` : "当前已是最新版本",
+        detail: hasUpdate ? release.notes || "可以前往下载最新版安装包。" : `当前版本：${current}`,
+        buttons: hasUpdate ? ["下载", "稍后"] : ["知道了"],
+        defaultId: 0,
+        cancelId: hasUpdate ? 1 : 0
+      } as const;
+      const parent = getMainWindow();
+      const result = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+      if (hasUpdate && result.response === 0) await shell.openExternal(release.downloadUrl);
+    }
+    return { current, latest: release, hasUpdate };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "暂时无法检查更新。";
+    if (showDialog) {
+      const parent = getMainWindow();
+      const options = { type: "warning", title: "MiniPet 更新", message } as const;
+      if (parent) await dialog.showMessageBox(parent, options);
+      else await dialog.showMessageBox(options);
+    }
+    return { error: message };
+  }
 }
 
 function registerAssetProtocol(): void {
@@ -205,6 +263,7 @@ function registerIpc(): void {
     assets: assetManager.getManifest(),
     openClaw: openClaw.status(true),
     core: coreManager.status(),
+    cloudStatus: latestCloudStatus,
     audit: await readAuditLog(80)
   }));
 
@@ -237,6 +296,8 @@ function registerIpc(): void {
     await shell.openExternal(result.normalized);
     return result;
   });
+
+  handle("app:check-update", async () => checkForUpdates(false));
 
   handle("asset:scan", async (_event, payload) => {
     const directory = typeof payload === "object" && payload ? String((payload as { directory?: string }).directory ?? configStore.get().assetDirectory) : configStore.get().assetDirectory;
@@ -332,6 +393,17 @@ function registerIpc(): void {
       messages
     );
     return { permission: decision, result: redactSecrets(result) };
+  });
+
+  handle("llm:test-connection", async (_event, payload) => {
+    const settings = configStore.get();
+    const input = (payload ?? {}) as { apiKey?: string; baseUrl?: string; model?: string };
+    const apiKey = input.apiKey || (await secureStore.getSecret("openaiApiKey"));
+    return llmClient.testConnection({
+      baseUrl: input.baseUrl || settings.openAIBaseUrl,
+      model: input.model || settings.openAIModel,
+      apiKey
+    });
   });
 
   handle("companion:run-task", async (_event, payload) => {

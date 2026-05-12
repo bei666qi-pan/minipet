@@ -1,4 +1,4 @@
-export interface ServerConfig {
+export interface BackendConfig {
   webOrigin: string;
   apiOrigin: string;
   downloadOrigin: string;
@@ -12,13 +12,19 @@ export interface ServerConfig {
   adminPasswordHash?: string;
   releaseVersion: string;
   releaseNotes: string;
+  blockedWords: string[];
+  highRiskWords: string[];
+  ipWindowMs: number;
+  ipMaxRequests: number;
+  deviceDailyRequestLimit: number;
   port: number;
   dataDir: string;
+  nodeEnv: string;
 }
 
 export const DEFAULT_DEVICE_QUOTA_TOKENS = 2_000_000;
 
-export function loadServerConfig(env = process.env): ServerConfig {
+export function loadBackendConfig(env = process.env): BackendConfig {
   return {
     webOrigin: env.MINIPET_WEB_ORIGIN || "https://minipet.versecraft.cn",
     apiOrigin: env.MINIPET_API_ORIGIN || "https://api.minipet.versecraft.cn",
@@ -33,12 +39,18 @@ export function loadServerConfig(env = process.env): ServerConfig {
     adminPasswordHash: env.ADMIN_PASSWORD_HASH || env.MINIPET_ADMIN_PASSWORD_HASH,
     releaseVersion: env.MINIPET_RELEASE_VERSION || env.npm_package_version || "0.1.0",
     releaseNotes: env.MINIPET_RELEASE_NOTES || "MiniPet Windows installer",
+    blockedWords: splitWords(env.MINIPET_BLOCKED_WORDS),
+    highRiskWords: splitWords(env.MINIPET_HIGH_RISK_WORDS || "delete,payment,transfer,submit form,send message,run command"),
+    ipWindowMs: Number(env.MINIPET_IP_WINDOW_MS || 60_000),
+    ipMaxRequests: Number(env.MINIPET_IP_MAX_REQUESTS || 60),
+    deviceDailyRequestLimit: Number(env.MINIPET_DEVICE_DAILY_REQUEST_LIMIT || 500),
     port: Number(env.PORT || 8080),
-    dataDir: env.MINIPET_DATA_DIR || ".runtime-data/server"
+    dataDir: env.MINIPET_DATA_DIR || ".runtime-data/backend",
+    nodeEnv: env.NODE_ENV || "development"
   };
 }
 
-export function missingProductionConfig(config: ServerConfig): string[] {
+export function missingProductionConfig(config: BackendConfig): string[] {
   const missing: string[] = [];
   if (!config.newApiBaseUrl) missing.push("NEWAPI_BASE_URL");
   if (!config.newApiKey) missing.push("NEWAPI_API_KEY");
@@ -47,4 +59,11 @@ export function missingProductionConfig(config: ServerConfig): string[] {
   if (!config.adminEmail) missing.push("ADMIN_EMAIL");
   if (!config.adminPassword && !config.adminPasswordHash) missing.push("ADMIN_PASSWORD_HASH or ADMIN_PASSWORD");
   return missing;
+}
+
+function splitWords(value: string | undefined): string[] {
+  return (value || "")
+    .split(/[,;\n]/)
+    .map((word) => word.trim())
+    .filter(Boolean);
 }

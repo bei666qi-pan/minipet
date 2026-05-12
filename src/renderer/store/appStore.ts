@@ -31,7 +31,8 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
   petState: "idle_welcome",
-  bubbleText: "你好，我是 MiniPet。点一下我，就能和我说话。",
+  bubbleText:
+    "你好，我是 MiniPet，你的桌面学习/办公搭子。你可以直接问我问题，也可以让我帮你总结资料、提醒任务。默认安全模式下，我不会自动删除文件或执行高危操作。",
   talkOpen: false,
   talkLastInteractionAt: Date.now(),
   commandOpen: false,

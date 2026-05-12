@@ -1,4 +1,4 @@
-import { Bell, Home, Images, Moon, Power, ScrollText, Shield, Sparkles, X } from "lucide-react";
+import { Bell, Home, Images, Moon, Power, ScrollText, Settings, Shield, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
@@ -9,7 +9,7 @@ import { ModelPanel } from "./ModelPanel";
 import { SafetyModeSwitch } from "./SafetyModeSwitch";
 import { TaskTimeline } from "./TaskTimeline";
 
-const TABS = ["连接授权", "外观贴图", "陪伴提醒", "记录", "关于"] as const;
+const TABS = ["基础", "外观", "陪伴", "记录", "高级", "关于"] as const;
 type Tab = (typeof TABS)[number];
 
 interface Props {
@@ -17,15 +17,21 @@ interface Props {
 }
 
 export function SettingsPanel({ standalone = false }: Props) {
-  const { settingsOpen, setSettingsOpen } = useAppStore();
+  const { settingsOpen, setSettingsOpen, say } = useAppStore();
   const { settings, update } = useSettingsStore();
-  const [tab, setTab] = useState<Tab>("连接授权");
+  const [tab, setTab] = useState<Tab>("基础");
   if (!settings || (!standalone && !settingsOpen)) return null;
 
   const close = () => {
     if (standalone) void window.minipet.invoke("window:close-settings");
     else setSettingsOpen(false);
   };
+
+  async function checkUpdate() {
+    const result = await window.minipet.invoke<{ hasUpdate?: boolean; latest?: { version?: string }; error?: string }>("app:check-update");
+    if (result.error) say(result.error, "surprised_alert");
+    else say(result.hasUpdate ? `发现新版本 ${result.latest?.version}，可以通过托盘菜单下载。` : "当前已是最新版本。", "idle_calm");
+  }
 
   return (
     <div className={standalone ? "settings-page no-drag" : "side-panel companion-room no-drag"}>
@@ -47,15 +53,26 @@ export function SettingsPanel({ standalone = false }: Props) {
         ))}
       </nav>
       <main className="panel-content settings-content">
-        {tab === "连接授权" ? (
+        {tab === "基础" ? (
           <>
-            <ModelPanel />
-            <CoreStatusPanel />
+            <section className="panel-section">
+              <div className="section-title">
+                <Shield size={18} />
+                <span>默认托管模式</span>
+              </div>
+              <p>MiniPet 默认直接连接官方云端。普通用户不需要填写 URL、API Key，也不需要配置模型供应商。</p>
+              <div className="friendly-checks">
+                <span>匿名设备 ID</span>
+                <span>默认 200 万 token 额度</span>
+                <span>安全模式</span>
+              </div>
+              <button onClick={() => void checkUpdate()}>检查更新</button>
+            </section>
             <SafetyModeSwitch />
           </>
         ) : null}
 
-        {tab === "外观贴图" ? (
+        {tab === "外观" ? (
           <>
             <section className="panel-section">
               <div className="section-title">
@@ -81,7 +98,7 @@ export function SettingsPanel({ standalone = false }: Props) {
                     void window.minipet.invoke("window:set-always-on-top", { enabled: event.target.checked }).then(() => update({ alwaysOnTop: event.target.checked }))
                   }
                 />
-                <span>始终在桌面上方陪伴</span>
+                <span>保持在桌面上方陪伴</span>
               </label>
               <button onClick={() => void window.minipet.invoke("window:hide")}>
                 <Power size={16} /> 隐藏桌宠
@@ -91,18 +108,18 @@ export function SettingsPanel({ standalone = false }: Props) {
           </>
         ) : null}
 
-        {tab === "陪伴提醒" ? (
+        {tab === "陪伴" ? (
           <section className="panel-section">
             <div className="section-title">
               <Bell size={18} />
-              <span>主动说话</span>
+              <span>主动开口</span>
             </div>
             <label className="checkbox-line">
               <input type="checkbox" checked={settings.proactiveSpeechEnabled} onChange={(event) => void update({ proactiveSpeechEnabled: event.target.checked })} />
               <span>允许 MiniPet 低打扰地主动开口</span>
             </label>
             <label className="field">
-              <span>对话入口闲置后自动隐藏</span>
+              <span>对话入口闲置后自动隐藏（秒）</span>
               <input
                 type="number"
                 min="8"
@@ -139,21 +156,21 @@ export function SettingsPanel({ standalone = false }: Props) {
           </>
         ) : null}
 
+        {tab === "高级" ? (
+          <>
+            <ModelPanel />
+            <CoreStatusPanel />
+          </>
+        ) : null}
+
         {tab === "关于" ? (
           <section className="panel-section">
             <div className="section-title">
               <ScrollText size={18} />
               <span>关于 MiniPet</span>
             </div>
-            <p>
-              MiniPet 是低打扰桌面陪伴入口。点击桌宠即可打开唯一对话入口；涉及安装、文件、网页、提交等敏感动作时，会先弹窗确认。
-            </p>
-            <p className="hint">视觉风格采用清透水彩、柔和高明度、细描边和清晰层级，不仿具体作品角色。</p>
-            <div className="section-title">
-              <Shield size={18} />
-              <span>隐私边界</span>
-            </div>
-            <p className="hint">主动说话会按授权模式裁剪上下文；默认不会读取屏幕、全盘文件或敏感凭据。</p>
+            <p>MiniPet 是低打扰桌面陪伴入口。点击桌宠即可打开唯一对话入口；涉及文件、网页、提交等敏感动作时，会先弹窗确认。</p>
+            <p className="hint">默认不会采集真实姓名、手机号或邮箱。托管模式只使用匿名设备 ID 识别额度。</p>
           </section>
         ) : null}
       </main>
@@ -164,10 +181,11 @@ export function SettingsPanel({ standalone = false }: Props) {
 function iconFor(tab: Tab) {
   const props = { size: 18 };
   return {
-    连接授权: <Shield {...props} />,
-    外观贴图: <Images {...props} />,
-    陪伴提醒: <Sparkles {...props} />,
+    基础: <Shield {...props} />,
+    外观: <Images {...props} />,
+    陪伴: <Sparkles {...props} />,
     记录: <ScrollText {...props} />,
+    高级: <Settings {...props} />,
     关于: <Home {...props} />
   }[tab];
 }

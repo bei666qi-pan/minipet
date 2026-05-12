@@ -40,7 +40,7 @@ export class OpenAICompatibleClient {
   async chat(config: LlmClientConfig, messages: LlmChatMessage[]): Promise<LlmChatResult> {
     if (!config.apiKey) {
       return {
-        text: "普通聊天还没有配置授权信息。你可以先准备智能核心，或在伙伴小屋的高级入口里配置聊天授权。",
+        text: "自带模型模式还没有保存 API Key。你也可以切回 MiniPet 托管模式直接聊天。",
         baseUrlUsed: config.baseUrl,
         model: config.model,
         streamingUsed: false
@@ -64,7 +64,7 @@ export class OpenAICompatibleClient {
   }
 
   async testConnection(config: LlmClientConfig): Promise<{ ok: boolean; message: string; baseUrlUsed?: string }> {
-    if (!config.apiKey) return { ok: false, message: "未配置聊天授权。" };
+    if (!config.apiKey) return { ok: false, message: "请先保存自己的 API Key。" };
     const urls = uniqueBaseUrls(config.baseUrl);
     for (const baseUrl of urls) {
       try {

@@ -13,8 +13,10 @@ const MAIN_UI_FILES = [
 describe("beginner UI copy", () => {
   it("keeps the main surface focused on one conversational entry", () => {
     const combined = MAIN_UI_FILES.map((file) => fs.readFileSync(path.join(process.cwd(), file), "utf8")).join("\n");
-    expect(combined).toMatch(/点一下/);
-    expect(combined).not.toMatch(/Gateway|Token|API Key|Base URL|Full Access/);
+    expect(combined).toMatch(/问我一下/);
+    expect(combined).toMatch(/总结文件/);
+    expect(combined).toMatch(/任务提醒/);
+    expect(combined).not.toMatch(/Gateway|Token|API Key|Base URL|NewAPI|模型供应商|Full Access/);
     expect(fs.existsSync(path.join(process.cwd(), "src/renderer/components/QuickActions.tsx"))).toBe(false);
     expect(fs.existsSync(path.join(process.cwd(), "src/renderer/components/CommandPalette.tsx"))).toBe(false);
   });

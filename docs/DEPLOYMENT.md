@@ -18,7 +18,10 @@ Deploy this repository with the included `Dockerfile`.
 - Expose container port `8080`.
 - Set the production variables from `docs/ENV_REQUIRED.md`.
 - Point `minipet.versecraft.cn` and `api.minipet.versecraft.cn` at this service, or deploy two Coolify apps with the same image if you prefer separate hostnames.
-- Use a persistent PostgreSQL database via `DATABASE_URL`.
+- The production API entrypoint is `apps/backend/src/index.ts`, compiled by `pnpm run build:server` into `dist-server/index.js`.
+- Use a persistent PostgreSQL database via `DATABASE_URL`. If `DATABASE_URL` is absent, the backend falls back to local SQLite under `MINIPET_DATA_DIR`; this is only suitable for local development or single-node smoke tests.
+- `JWT_SECRET` is required in production. The backend refuses production startup when it is missing.
+- Configure `NEWAPI_BASE_URL`, `NEWAPI_API_KEY`, and `NEWAPI_DEFAULT_MODEL` only on the server/Coolify side.
 
 ## Windows Installer
 
@@ -31,3 +34,5 @@ If Volcengine TOS secrets are configured in GitHub Secrets, the workflow uploads
 - Do not put API keys, NewAPI tokens, database passwords, Coolify tokens, or Volcengine AK/SK in the repository or frontend code.
 - The desktop app stores only its cloud device token locally via Electron safe storage.
 - NewAPI credentials are read only by the server process.
+- Admin login requires `ADMIN_EMAIL` plus either `ADMIN_PASSWORD_HASH` or `ADMIN_PASSWORD`; prefer storing only `ADMIN_PASSWORD_HASH` in production.
+- Backend logs redact authorization, bearer token, api key, password, secret, and token-shaped fields before printing structured error details.

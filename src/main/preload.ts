@@ -6,6 +6,7 @@ const IPC_CHANNELS = [
   "app:set-secret",
   "app:clear-secret",
   "app:open-external",
+  "app:check-update",
   "asset:scan",
   "asset:set-directory",
   "openclaw:connect",
@@ -16,6 +17,7 @@ const IPC_CHANNELS = [
   "companion:run-task",
   "output:open-directory",
   "llm:chat",
+  "llm:test-connection",
   "permission:evaluate",
   "audit:read",
   "window:set-always-on-top",
@@ -33,16 +35,17 @@ const IPC_CHANNELS = [
 ] as const;
 
 type IpcChannel = (typeof IPC_CHANNELS)[number];
+type EventChannel = "openclaw:event" | "openclaw:status" | "core:progress" | "cloud:status";
 
 const allowed = new Set<string>(IPC_CHANNELS);
-const eventChannels = new Set(["openclaw:event", "openclaw:status", "core:progress"]);
+const eventChannels = new Set<EventChannel>(["openclaw:event", "openclaw:status", "core:progress", "cloud:status"]);
 
 contextBridge.exposeInMainWorld("minipet", {
   invoke(channel: IpcChannel, payload?: unknown) {
     if (!allowed.has(channel)) throw new Error(`IPC 通道未授权：${channel}`);
     return ipcRenderer.invoke(channel, payload);
   },
-  on(channel: "openclaw:event" | "openclaw:status" | "core:progress", callback: (payload: unknown) => void) {
+  on(channel: EventChannel, callback: (payload: unknown) => void) {
     if (!eventChannels.has(channel)) throw new Error(`事件通道未授权：${channel}`);
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload);
     ipcRenderer.on(channel, listener);

@@ -317,13 +317,21 @@ textarea {
 }
 
 .selected-files,
-.friendly-checks {
+.friendly-checks,
+.quick-intents {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.quick-intents button {
+  min-height: 32px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .friendly-checks span {
@@ -375,7 +383,7 @@ textarea {
 
 .room-tabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);

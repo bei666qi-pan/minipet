@@ -11,7 +11,7 @@ import { useTaskStore } from "./store/taskStore";
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
-  const { load, settings } = useSettingsStore();
+  const { load, settings, cloudStatus } = useSettingsStore();
   const setCoreStatus = useSettingsStore((state) => state.setCoreStatus);
   const handleOpenClawEvent = useTaskStore((state) => state.handleOpenClawEvent);
   const { addSelectedFiles, say, setTalkOpen } = useAppStore();
@@ -31,12 +31,17 @@ export default function App() {
     const offEvent = window.minipet.on("openclaw:event", (payload) => handleOpenClawEvent(payload as Record<string, unknown>));
     const offStatus = window.minipet.on("openclaw:status", () => void load());
     const offCore = window.minipet.on("core:progress", (payload) => setCoreStatus(payload as never));
+    const offCloud = window.minipet.on("cloud:status", (payload) => {
+      const status = payload as { online?: boolean; message?: string };
+      if (status.online === false && status.message) say(status.message, "surprised_alert");
+    });
     return () => {
       offEvent();
       offStatus();
       offCore();
+      offCloud();
     };
-  }, [handleOpenClawEvent, load, setCoreStatus]);
+  }, [handleOpenClawEvent, load, say, setCoreStatus]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -48,6 +53,10 @@ export default function App() {
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [setTalkOpen]);
+
+  useEffect(() => {
+    if (cloudStatus?.online === false && cloudStatus.message) say(cloudStatus.message, "surprised_alert");
+  }, [cloudStatus?.message, cloudStatus?.online, say]);
 
   if (isSettingsWindow) {
     return (
@@ -69,7 +78,7 @@ export default function App() {
         if (files.length) {
           addSelectedFiles(files);
           setTalkOpen(true);
-          say(`我看到了 ${files.length} 个文件。你可以告诉我想怎么处理它们。`, "listening");
+          say(`我看到了 ${files.length} 个文件。你可以告诉我想怎么总结或整理它们。`, "listening");
         }
       }}
     >

@@ -6,7 +6,7 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY tsconfig.server.json ./
-COPY src/server ./src/server
+COPY apps/backend ./apps/backend
 COPY design ./design
 RUN pnpm run build:server
 

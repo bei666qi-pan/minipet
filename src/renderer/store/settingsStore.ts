@@ -90,6 +90,12 @@ export interface CoreStatus {
   lastError?: string;
 }
 
+export interface CloudStatus {
+  online: boolean;
+  message?: string;
+  quotaRemaining?: number;
+}
+
 interface SettingsState {
   loading: boolean;
   settings?: MiniPetSettings;
@@ -97,6 +103,7 @@ interface SettingsState {
   secrets?: SecretStatus;
   openClaw?: OpenClawStatus;
   core?: CoreStatus;
+  cloudStatus?: CloudStatus;
   audit: unknown[];
   load: () => Promise<void>;
   update: (patch: Partial<MiniPetSettings>) => Promise<void>;
@@ -119,6 +126,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       assets: AssetManifest;
       openClaw: OpenClawStatus;
       core: CoreStatus;
+      cloudStatus?: CloudStatus;
       audit: unknown[];
     }>("app:get-state");
     set({ ...state, loading: false });

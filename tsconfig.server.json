@@ -8,10 +8,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "rootDir": "src/server",
+    "rootDir": "apps/backend/src",
     "outDir": "dist-server",
     "types": ["node"],
     "resolveJsonModule": true
   },
-  "include": ["src/server/**/*.ts"]
+  "include": ["apps/backend/src/**/*.ts"]
 }

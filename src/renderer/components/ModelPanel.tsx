@@ -1,91 +1,92 @@
-import { KeyRound, ServerCog, Trash2 } from "lucide-react";
+import { CheckCircle2, KeyRound, ServerCog, Trash2, Wifi } from "lucide-react";
 import { useState } from "react";
 import { useSettingsStore } from "../store/settingsStore";
 
 export function ModelPanel() {
   const { settings, secrets, update, setSecret, clearSecret } = useSettingsStore();
   const [apiKey, setApiKey] = useState("");
-  const [token, setToken] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testMessage, setTestMessage] = useState("");
   if (!settings) return null;
+  const current = settings;
+
+  async function testConnection() {
+    setTesting(true);
+    setTestMessage("");
+    try {
+      const result = await window.minipet.invoke<{ ok: boolean; message: string; baseUrlUsed?: string }>("llm:test-connection", {
+        apiKey,
+        baseUrl: current.openAIBaseUrl,
+        model: current.openAIModel
+      });
+      setTestMessage(result.ok ? `连接成功：${result.baseUrlUsed ?? current.openAIBaseUrl}` : result.message);
+    } catch (error) {
+      setTestMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
     <section className="panel-section auth-focus-card">
       <div className="section-title">
         <ServerCog size={18} />
-        <span>连接与授权</span>
+        <span>模型模式</span>
       </div>
-      <p className="hint">默认使用 MiniPet 云端基础 AI，对普通用户无需填写 URL、API Key、NewAPI 或 OpenClaw。高级用户可切换为自带模型。</p>
+      <p className="hint">默认使用 MiniPet 托管模式。普通用户不需要填写任何地址或密钥。</p>
       <div className="segmented">
-        <button className={settings.aiMode === "cloud" ? "active" : ""} onClick={() => void update({ aiMode: "cloud" })}>
-          MiniPet 云端
+        <button className={current.aiMode === "cloud" ? "active" : ""} onClick={() => void update({ aiMode: "cloud" })}>
+          MiniPet 托管模式
         </button>
-        <button className={settings.aiMode === "custom" ? "active" : ""} onClick={() => void update({ aiMode: "custom" })}>
-          自带模型/API Key
-        </button>
-      </div>
-      <label className="field">
-        <span>MiniPet API 地址</span>
-        <input value={settings.cloudApiOrigin} onChange={(event) => void update({ cloudApiOrigin: event.target.value })} />
-      </label>
-      <label className="field token-field">
-        <span>大模型 API Key</span>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(event) => setApiKey(event.target.value)}
-          disabled={settings.aiMode !== "custom"}
-          placeholder={secrets?.openaiApiKey ? "已安全保存，需要更换时重新输入" : "仅自带模型模式需要填写"}
-        />
-      </label>
-      <div className="toolbar-row">
-        <button className="primary-button" disabled={settings.aiMode !== "custom"} onClick={() => void setSecret("openaiApiKey", apiKey).then(() => setApiKey(""))}>
-          <KeyRound size={15} /> 保存 API Key
-        </button>
-        <button onClick={() => void clearSecret("openaiApiKey")}>
-          <Trash2 size={15} /> 清除
+        <button className={current.aiMode === "custom" ? "active" : ""} onClick={() => void update({ aiMode: "custom" })}>
+          使用自己的模型
         </button>
       </div>
-      <label className="field">
-        <span>API Base URL</span>
-        <input value={settings.openAIBaseUrl} onChange={(event) => void update({ openAIBaseUrl: event.target.value })} />
-      </label>
-      <label className="field">
-        <span>模型名称</span>
-        <input value={settings.openAIModel} onChange={(event) => void update({ openAIModel: event.target.value })} />
-      </label>
-      <div className="split-fields">
-        <label className="field">
-          <span>OpenClaw Gateway 地址，一行一个</span>
-          <textarea
-            value={settings.openClawUrls.join("\n")}
-            onChange={(event) =>
-              void update({
-                openClawUrls: event.target.value
-                  .split(/\r?\n/)
-                  .map((line) => line.trim())
-                  .filter(Boolean)
-              })
-            }
-          />
-        </label>
-        <label className="field token-field">
-          <span>OpenClaw Token / Password</span>
-          <input
-            type="password"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            placeholder={secrets?.openclawToken ? "已安全保存，需要更换时重新输入" : "可留空"}
-          />
-        </label>
-      </div>
-      <div className="toolbar-row">
-        <button onClick={() => void setSecret("openclawToken", token).then(() => setToken(""))}>
-          <KeyRound size={15} /> 保存 OpenClaw Token
-        </button>
-        <button onClick={() => void clearSecret("openclawToken")}>
-          <Trash2 size={15} /> 清除
-        </button>
-      </div>
-      {!secrets?.encryptionAvailable ? <p className="warning-line">当前环境无法安全持久化密钥，可改为仅本次会话使用。</p> : null}
+
+      {current.aiMode === "cloud" ? (
+        <div className="friendly-checks">
+          <span>
+            <CheckCircle2 size={14} /> 已隐藏技术配置
+          </span>
+          <span>
+            <Wifi size={14} /> 连接 MiniPet 云端
+          </span>
+        </div>
+      ) : (
+        <>
+          <label className="field">
+            <span>Base URL</span>
+            <input value={current.openAIBaseUrl} onChange={(event) => void update({ openAIBaseUrl: event.target.value })} />
+          </label>
+          <label className="field">
+            <span>Model</span>
+            <input value={current.openAIModel} onChange={(event) => void update({ openAIModel: event.target.value })} />
+          </label>
+          <label className="field token-field">
+            <span>API Key</span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder={secrets?.openaiApiKey ? "已保存在本机，测试或更换时重新输入" : "只会保存在本机 safeStorage"}
+            />
+          </label>
+          <div className="toolbar-row">
+            <button onClick={() => void testConnection()} disabled={testing || (!apiKey && !secrets?.openaiApiKey)}>
+              <Wifi size={15} /> {testing ? "测试中" : "测试连接"}
+            </button>
+            <button className="primary-button" disabled={!apiKey} onClick={() => void setSecret("openaiApiKey", apiKey).then(() => setApiKey(""))}>
+              <KeyRound size={15} /> 保存到本机
+            </button>
+            <button onClick={() => void clearSecret("openaiApiKey")}>
+              <Trash2 size={15} /> 清除
+            </button>
+          </div>
+          {testMessage ? <p className="hint">{testMessage}</p> : null}
+          <p className="hint">自带模型模式会从桌面端直连你的 OpenAI-compatible API；你的 Key 不会发送到 MiniPet 后端。</p>
+        </>
+      )}
+      {!secrets?.encryptionAvailable ? <p className="warning-line">当前系统无法使用 Electron safeStorage 安全持久化密钥。</p> : null}
     </section>
   );
 }

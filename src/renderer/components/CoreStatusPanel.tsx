@@ -10,11 +10,12 @@ export function CoreStatusPanel() {
     <section className="panel-section gateway-status">
       <div className="section-title">
         {connected ? <Plug size={18} /> : <WifiOff size={18} />}
-        <span>智能核心状态</span>
+        <span>OpenClaw 高级能力</span>
       </div>
+      <p className="hint">普通问答不需要 OpenClaw。只有高级自动化任务才会用到这里。</p>
       <div className="status-grid">
         <span>连接</span>
-        <strong>{connected ? "已准备好" : "还没准备好"}</strong>
+        <strong>{connected ? "已准备好" : "未连接"}</strong>
         <span>地址</span>
         <strong>{openClaw?.url ?? settings?.openClawUrls[0] ?? "ws://127.0.0.1:18789"}</strong>
         <span>会话</span>
@@ -26,7 +27,7 @@ export function CoreStatusPanel() {
       <button
         className="primary-button"
         onClick={() => {
-          void connectOpenClaw().then((status) => say(status.connected ? "智能核心已准备好。" : "暂时没有发现智能核心。"));
+          void connectOpenClaw().then((status) => say(status.connected ? "OpenClaw 已准备好。" : "暂时没有发现 OpenClaw。"));
         }}
       >
         <RefreshCw size={16} /> 重新检查

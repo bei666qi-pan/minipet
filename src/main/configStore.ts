@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 import type { PermissionMode } from "./permissions/PermissionModes";
 import type { CoreInstallState } from "./core/RuntimeInstaller";
 import { defaultRuntimeDir } from "./core/RuntimeInstaller";
@@ -38,6 +39,7 @@ export interface MiniPetSettings {
 }
 
 const DEFAULT_PROJECT_ROOT = "D:\\minipet";
+export const MANAGED_API_ORIGIN = "https://api.minipet.versecraft.cn";
 
 export function defaultBundledAssetDirectory(): string {
   const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
@@ -54,7 +56,7 @@ export const DEFAULT_SETTINGS: MiniPetSettings = {
   openAIBaseUrl: "https://newkey.versecraft.cn/",
   openAIModel: "minipet",
   aiMode: "cloud",
-  cloudApiOrigin: "https://api.minipet.versecraft.cn",
+  cloudApiOrigin: MANAGED_API_ORIGIN,
   cloudDeviceId: "",
   permissionMode: "safe",
   adminAdvanced: false,
@@ -93,8 +95,10 @@ export class ConfigStore {
       const raw = await fs.readFile(this.filePath, "utf8");
       const parsed = JSON.parse(raw) as Partial<MiniPetSettings>;
       this.settings = { ...DEFAULT_SETTINGS, ...parsed };
+      await this.ensureLocalIdentity();
     } catch {
       this.settings = { ...DEFAULT_SETTINGS };
+      await this.ensureLocalIdentity();
       await this.save();
     }
     return this.get();
@@ -113,5 +117,22 @@ export class ConfigStore {
   async save(): Promise<void> {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
     await fs.writeFile(this.filePath, `${JSON.stringify(this.settings, null, 2)}\n`, "utf8");
+  }
+
+  private async ensureLocalIdentity(): Promise<void> {
+    let changed = false;
+    if (!this.settings.cloudDeviceId || !/^mp_[a-f0-9]{32}$/.test(this.settings.cloudDeviceId)) {
+      this.settings.cloudDeviceId = `mp_${crypto.randomBytes(16).toString("hex")}`;
+      changed = true;
+    }
+    if (!this.settings.cloudApiOrigin) {
+      this.settings.cloudApiOrigin = MANAGED_API_ORIGIN;
+      changed = true;
+    }
+    if (!this.settings.aiMode) {
+      this.settings.aiMode = "cloud";
+      changed = true;
+    }
+    if (changed) await this.save();
   }
 }
