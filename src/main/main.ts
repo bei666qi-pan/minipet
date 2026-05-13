@@ -79,15 +79,13 @@ app.whenReady().then(async () => {
     toggle: toggleMainWindow,
     openSettings: showSettingsWindow,
     checkForUpdates: () => void checkForUpdates(true),
+    hideFloatingBall,
     setAlwaysOnTop: (enabled) => {
       getMainWindow()?.setAlwaysOnTop(enabled);
       void configStore.update({ alwaysOnTop: enabled });
     },
     isAlwaysOnTop: () => getMainWindow()?.isAlwaysOnTop() ?? configStore.get().alwaysOnTop,
-    quit: () => {
-      isQuitting = true;
-      app.quit();
-    }
+    quit: quitApp
   } satisfies TrayActions);
   openClaw.on("event", (event) => sendToRenderer("openclaw:event", redactSecrets(event)));
   openClaw.on("status", (status) => sendToRenderer("openclaw:status", redactSecrets(status)));
@@ -199,6 +197,14 @@ function hideMainWindow(): void {
   showFloatingBall();
 }
 
+function hideFloatingBall(): void {
+  const window = getFloatingBallWindow();
+  floatingBallPassThrough = false;
+  if (!window) return;
+  window.setIgnoreMouseEvents(false);
+  window.hide();
+}
+
 function showFloatingBall(options: { persist?: boolean } = {}): void {
   const window = getOrCreateFloatingBallWindow();
   const position = clampFloatingBallPositionForDisplay(configStore.get().floatingBallPosition ?? pointFromWindow(window));
@@ -227,12 +233,19 @@ function toggleMainWindow(): void {
   else showMainWindow();
 }
 
-function openPetContextMenu(): void {
-  const window = getMainWindow();
-  if (!window) return;
+function openPetContextMenu(window?: BrowserWindow): void {
+  const targetWindow = window && !window.isDestroyed() ? window : getMainWindow() ?? getFloatingBallWindow();
+  if (!targetWindow) return;
+  const hasVisibleFloatingBall = Boolean(getFloatingBallWindow()?.isVisible());
+  const hasVisibleMainWindow = Boolean(getMainWindow()?.isVisible());
   Menu.buildFromTemplate([
     {
-      label: "打开设置",
+      label: "打开爪爪",
+      enabled: !hasVisibleMainWindow,
+      click: () => showMainWindow()
+    },
+    {
+      label: "设置",
       click: showSettingsWindow
     },
     {
@@ -241,17 +254,32 @@ function openPetContextMenu(): void {
     },
     {
       label: "收起到悬浮球",
+      enabled: hasVisibleMainWindow,
       click: hideMainWindow
+    },
+    {
+      label: "关闭悬浮球",
+      enabled: hasVisibleFloatingBall,
+      click: hideFloatingBall
     },
     { type: "separator" },
     {
-      label: "退出",
-      click: () => {
-        isQuitting = true;
-        app.quit();
-      }
+      label: "退出爪爪",
+      click: quitApp
     }
-  ]).popup({ window });
+  ]).popup({ window: targetWindow });
+}
+
+function quitApp(): void {
+  isQuitting = true;
+  app.quit();
+}
+
+function windowForSender(event: IpcMainInvokeEvent): BrowserWindow | undefined {
+  for (const window of [getMainWindow(), getSettingsWindow(), getFloatingBallWindow()]) {
+    if (window && !window.webContents.isDestroyed() && window.webContents.id === event.sender.id) return window;
+  }
+  return undefined;
 }
 
 function applyMainWindowMousePolicy(): void {
@@ -607,10 +635,11 @@ function registerIpc(): void {
     }
 
     const permissionMode = await permissionModeForScope(settings.permissionMode, request.authorizationScope);
+    const method = route.needsCore ? "chat.send" : route.actionType === "office_generate" ? "local.office.generate" : "local.chat";
     const decision = permissionGate.evaluate({
       mode: permissionMode,
       actionType: route.actionType,
-      method: route.needsCore ? "chat.send" : "local.chat",
+      method,
       prompt: route.prompt,
       paths: request.files,
       urls: route.urls,
@@ -657,9 +686,15 @@ function registerIpc(): void {
     const outputs =
       route.output === "pptx"
         ? [await outputManager.createPptx({ title: route.title, body: text, outputDirectory: settings.outputDirectory })]
-        : route.output === "paper"
-          ? await outputManager.createPaper({ title: route.title, body: text, outputDirectory: settings.outputDirectory })
-          : [];
+        : route.output === "docx"
+          ? [await outputManager.createDocx({ title: route.title, body: text, outputDirectory: settings.outputDirectory })]
+          : route.output === "xlsx"
+            ? [await outputManager.createXlsx({ title: route.title, body: text, outputDirectory: settings.outputDirectory })]
+            : route.output === "paper"
+              ? await outputManager.createPaper({ title: route.title, body: text, outputDirectory: settings.outputDirectory })
+              : route.output === "research"
+                ? await outputManager.createResearchBrief({ title: route.title, body: text, outputDirectory: settings.outputDirectory })
+                : [];
 
     await maybeRememberExchange(request.input, text);
 
@@ -731,6 +766,11 @@ function registerIpc(): void {
     return { collapsed: true };
   });
 
+  handle("window:hide-floating-ball", async () => {
+    hideFloatingBall();
+    return { hidden: true };
+  });
+
   handle("window:move-by", async (event, payload) => {
     const { dx, dy } = (payload ?? {}) as { dx?: number; dy?: number };
     const deltaX = Math.round(Number(dx) || 0);
@@ -760,8 +800,8 @@ function registerIpc(): void {
     return { closed: true };
   });
 
-  handle("window:open-pet-menu", async () => {
-    openPetContextMenu();
+  handle("window:open-pet-menu", async (event) => {
+    openPetContextMenu(windowForSender(event));
     return { opened: true };
   });
 

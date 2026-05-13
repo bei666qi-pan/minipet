@@ -14,9 +14,26 @@ describe("beginner UI copy", () => {
     const combined = MAIN_UI_FILES.map((file) => fs.readFileSync(path.join(process.cwd(), file), "utf8")).join("\n");
     expect(combined).toMatch(/问爪爪/);
     expect(combined).toMatch(/总结文件/);
+    expect(combined).toMatch(/Word/);
+    expect(combined).toMatch(/PPT/);
+    expect(combined).toMatch(/Excel/);
+    expect(combined).toMatch(/找资料/);
     expect(combined).toMatch(/任务提醒/);
     expect(combined).not.toMatch(/Gateway|Token|API Key|Base URL|NewAPI|模型供应商|Full Access/);
     expect(fs.existsSync(path.join(process.cwd(), "src/renderer/components/QuickActions.tsx"))).toBe(false);
     expect(fs.existsSync(path.join(process.cwd(), "src/renderer/components/CommandPalette.tsx"))).toBe(false);
+  });
+
+  it("keeps blocking confirmations inside the talk panel", () => {
+    const panel = fs.readFileSync(path.join(process.cwd(), "src/renderer/components/PetTalkPanel.tsx"), "utf8");
+    expect(panel).toMatch(/permission-inline/);
+    expect(panel).toMatch(/permission-dock/);
+    expect(panel).not.toMatch(/CoreInstallModal|ModelAuthModal/);
+
+    const outputIndex = panel.indexOf("talk-output");
+    const dockIndex = panel.indexOf("{renderBlockingPrompt()}");
+    const inputIndex = panel.indexOf("talk-input-row");
+    expect(dockIndex).toBeGreaterThan(outputIndex);
+    expect(dockIndex).toBeLessThan(inputIndex);
   });
 });

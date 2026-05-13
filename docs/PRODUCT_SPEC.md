@@ -17,8 +17,8 @@ MiniPet OpenClaw Companion 是 “桌宠 + OpenClaw 可视化控制台” MVP。
 - OpenClaw Gateway 连接状态
 - Demo Mode / Local Chat fallback
 - 普通对话
-- 联网搜索快捷 prompt
-- PPT 生成快捷 prompt
+- 联网搜索和资料整理快捷入口，输出可编辑资料草稿
+- Word / PPT / Excel 本地生成快捷入口
 - 浏览器控制快捷 prompt
 - 文件处理快捷 prompt
 - 任务时间线和请求级 localRequestId

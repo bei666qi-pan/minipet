@@ -1,11 +1,9 @@
-import { Bell, Copy, FilePlus2, FolderOpen, Mic, SendHorizonal, Settings, Sparkles, X } from "lucide-react";
+import { Bell, Copy, FilePlus2, FileText, FolderOpen, Mic, Presentation, Search, SendHorizonal, Settings, Sparkles, Table2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCompanionRunner } from "../hooks/useCompanionRunner";
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useTaskStore } from "../store/taskStore";
-import { CoreInstallModal } from "./CoreInstallModal";
-import { ModelAuthModal } from "./ModelAuthModal";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -94,6 +92,63 @@ export function PetTalkPanel() {
     void window.minipet.invoke("window:open-settings");
   }
 
+  function fillPrompt(text: string) {
+    touchTalkPanel();
+    setInput(text);
+    inputRef.current?.focus();
+  }
+
+  function renderBlockingPrompt() {
+    if (runner.pendingPermission) {
+      return (
+        <div className="permission-inline permission-dock" role="group" aria-label="爪爪需要你确认">
+          <span>允许后我会直接继续这件事。</span>
+          <div>
+            <button disabled={runner.permissionSubmitting} onClick={runner.clearPermission}>
+              先不要
+            </button>
+            <button disabled={runner.permissionSubmitting} onClick={() => void runner.confirmPermission("turn")}>
+              只允许这一次
+            </button>
+            <button className="primary-button" disabled={runner.permissionSubmitting} onClick={() => void runner.confirmPermission("switch_assisted")}>
+              以后同类也可以
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (runner.coreAuthorizationText) {
+      return (
+        <div className="permission-inline permission-dock" role="group" aria-label="爪爪需要你确认准备工具">
+          <span>{runner.coreAuthorizationText}</span>
+          <div>
+            <button onClick={runner.clearCoreAuthorization}>先不要</button>
+            <button className="primary-button" onClick={() => void runner.confirmCoreInstall()}>
+              继续
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (runner.modelAuthorizationText) {
+      return (
+        <div className="permission-inline permission-dock" role="group" aria-label="爪爪需要你设置聊天">
+          <span>{runner.modelAuthorizationText}</span>
+          <div>
+            <button onClick={runner.clearModelAuthorization}>先不要</button>
+            <button className="primary-button" onClick={() => void runner.openSettingsForModelAuthorization()}>
+              打开设置
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  }
+
   return (
     <>
       {talkOpen ? (
@@ -114,22 +169,6 @@ export function PetTalkPanel() {
               </button>
             </div>
             <p>{outputText}</p>
-            {runner.pendingPermission ? (
-              <div className="permission-inline" role="group" aria-label="爪爪需要你确认">
-                <span>允许后我会直接继续这件事。</span>
-                <div>
-                  <button disabled={runner.permissionSubmitting} onClick={runner.clearPermission}>
-                    先不要
-                  </button>
-                  <button disabled={runner.permissionSubmitting} onClick={() => void runner.confirmPermission("turn")}>
-                    只允许这一次
-                  </button>
-                  <button className="primary-button" disabled={runner.permissionSubmitting} onClick={() => void runner.confirmPermission("switch_assisted")}>
-                    以后同类也可以
-                  </button>
-                </div>
-              </div>
-            ) : null}
             {activeTask ? (
               <div className="talk-output-meta">
                 <span>{activeTask.timeline.at(-1)?.label}</span>
@@ -144,13 +183,26 @@ export function PetTalkPanel() {
             <button onClick={() => void selectFiles()}>
               <FilePlus2 size={15} /> 总结文件
             </button>
-            <button onClick={() => setInput("提醒我：")}>
+            <button onClick={() => fillPrompt("帮我生成一份 Word 报告，主题是：")}>
+              <FileText size={15} /> Word
+            </button>
+            <button onClick={() => fillPrompt("帮我做一份 PPT，主题是：")}>
+              <Presentation size={15} /> PPT
+            </button>
+            <button onClick={() => fillPrompt("帮我生成一个 Excel 表格，内容是：")}>
+              <Table2 size={15} /> Excel
+            </button>
+            <button onClick={() => fillPrompt("请联网搜索并整理资料，主题是：")}>
+              <Search size={15} /> 找资料
+            </button>
+            <button onClick={() => fillPrompt("提醒我：")}>
               <Bell size={15} /> 任务提醒
             </button>
             <button onClick={openSettings}>
               <Settings size={15} /> 设置
             </button>
           </div>
+          {renderBlockingPrompt()}
           <div className="talk-input-row">
             <button title="选择文件" onClick={() => void selectFiles()}>
               <FilePlus2 size={18} />
@@ -189,12 +241,6 @@ export function PetTalkPanel() {
           ) : null}
         </section>
       ) : null}
-      <CoreInstallModal message={runner.coreAuthorizationText} onCancel={runner.clearCoreAuthorization} onConfirm={() => void runner.confirmCoreInstall()} />
-      <ModelAuthModal
-        message={runner.modelAuthorizationText}
-        onCancel={runner.clearModelAuthorization}
-        onOpenSettings={() => void runner.openSettingsForModelAuthorization()}
-      />
     </>
   );
 }

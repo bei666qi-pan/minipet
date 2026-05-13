@@ -40,6 +40,7 @@ export type ActionType =
   | "chat"
   | "search"
   | "ppt"
+  | "office_generate"
   | "browser_read"
   | "browser_fill"
   | "browser_submit"

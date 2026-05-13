@@ -57,4 +57,4 @@ OpenClaw WebSocket 推送事件会被解析为：
 
 ## Prompt 模板
 
-联网搜索、PPT、浏览器和文件处理均通过明确安全 prompt 发送给 OpenClaw。MiniPet 不自动提交表单，不默认读取全盘，不自动安装技能。
+联网搜索、最新资料和网页资料整理优先通过明确安全 prompt 发送给 OpenClaw。普通 Word / PPT / Excel 生成走当前聊天模型并落到本地输出目录。MiniPet 不自动提交表单，不默认读取全盘，不自动安装技能。

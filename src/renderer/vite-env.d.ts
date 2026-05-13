@@ -31,6 +31,7 @@ type IpcChannel =
   | "window:show"
   | "window:expand-from-floating-ball"
   | "window:collapse-to-floating-ball"
+  | "window:hide-floating-ball"
   | "window:move-by"
   | "window:open-settings"
   | "window:close-settings"

@@ -7,6 +7,7 @@ export interface TrayActions {
   toggle: () => void;
   openSettings: () => void;
   checkForUpdates: () => void;
+  hideFloatingBall: () => void;
   setAlwaysOnTop: (enabled: boolean) => void;
   isAlwaysOnTop: () => boolean;
   quit: () => void;
@@ -44,9 +45,13 @@ export function createTray(actions: TrayActions): Tray {
           label: "收起到悬浮球",
           click: actions.hide
         },
+        {
+          label: "关闭悬浮球",
+          click: actions.hideFloatingBall
+        },
         { type: "separator" },
         {
-          label: "退出",
+          label: "退出爪爪",
           click: actions.quit
         }
       ])

@@ -6,11 +6,12 @@ import type { PermissionContext, PermissionDecision, PermissionMode, RiskLevel }
 import { MODE_SCOPES } from "./PermissionModes";
 
 const DEMO_ALLOWED = new Set(["chat"]);
-const SAFE_ALLOWED = new Set(["chat", "search", "ppt", "browser_read", "file_read", "app_overlay_read", "app_overlay_assist"]);
+const SAFE_ALLOWED = new Set(["chat", "search", "ppt", "office_generate", "browser_read", "file_read", "app_overlay_read", "app_overlay_assist"]);
 const ASSISTED_ALLOWED = new Set([
   "chat",
   "search",
   "ppt",
+  "office_generate",
   "browser_read",
   "browser_fill",
   "file_read",

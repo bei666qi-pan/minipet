@@ -141,7 +141,7 @@ textarea {
 }
 
 .app-root.is-talk-open .pet-shell {
-  z-index: 34;
+  z-index: 32;
 }
 
 .pet-image {
@@ -230,7 +230,7 @@ textarea {
   right: 16px;
   bottom: 14px;
   width: min(430px, calc(100% - 32px));
-  z-index: 30;
+  z-index: 40;
   display: grid;
   gap: 8px;
   padding: 12px;
@@ -339,6 +339,18 @@ textarea {
   min-height: 32px;
   padding: 7px 10px;
   border-radius: 999px;
+}
+
+.permission-dock {
+  position: relative;
+  z-index: 45;
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(233, 111, 154, 0.42);
+  box-shadow: 0 8px 22px rgba(83, 57, 102, 0.14);
+}
+
+.permission-dock button {
+  flex: 1 1 96px;
 }
 
 .memory-list {

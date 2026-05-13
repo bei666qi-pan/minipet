@@ -23,6 +23,12 @@ export function FloatingBall() {
     void window.minipet.invoke("window:set-pass-through", { enabled });
   }
 
+  function openContextMenu() {
+    dragRef.current = undefined;
+    setPassThrough(false);
+    void window.minipet.invoke("window:open-pet-menu");
+  }
+
   function updatePassThrough(target: EventTarget | null) {
     if (dragRef.current) return;
     const onBall = target instanceof Element && Boolean(target.closest(".floating-ball-button"));
@@ -71,6 +77,10 @@ export function FloatingBall() {
       onMouseMove={(event) => updatePassThrough(event.target)}
       onMouseDown={(event) => updatePassThrough(event.target)}
       onMouseLeave={() => setPassThrough(true)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        openContextMenu();
+      }}
     >
       <button
         className="floating-ball-button"
@@ -81,6 +91,10 @@ export function FloatingBall() {
         onPointerMove={movePointer}
         onPointerUp={endPointer}
         onPointerCancel={endPointer}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          openContextMenu();
+        }}
       >
         <img src={LOGO_URL} alt="" draggable={false} />
       </button>

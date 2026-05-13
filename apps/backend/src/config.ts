@@ -39,7 +39,7 @@ export function loadBackendConfig(env = process.env): BackendConfig {
     adminPassword: env.ADMIN_PASSWORD || env.MINIPET_ADMIN_PASSWORD,
     adminPasswordHash: env.ADMIN_PASSWORD_HASH || env.MINIPET_ADMIN_PASSWORD_HASH,
     releaseWebhookSecret: env.ADMIN_RELEASE_TOKEN || env.BACKEND_RELEASE_WEBHOOK_SECRET || env.MINIPET_RELEASE_WEBHOOK_SECRET,
-    releaseVersion: env.MINIPET_RELEASE_VERSION || env.npm_package_version || "0.1.1",
+    releaseVersion: env.MINIPET_RELEASE_VERSION || env.npm_package_version || "0.1.2",
     releaseNotes: env.MINIPET_RELEASE_NOTES || "爪爪 Windows 安装包",
     blockedWords: splitWords(env.MINIPET_BLOCKED_WORDS),
     highRiskWords: splitWords(env.MINIPET_HIGH_RISK_WORDS || "delete,payment,transfer,submit form,send message,run command"),

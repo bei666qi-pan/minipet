@@ -25,13 +25,13 @@ async function loadRelease() {
   const downloadButton = document.querySelector("#download-button");
   if (downloadButton) downloadButton.href = installerUrl;
 
-  setText("#version", release.version || "0.1.1");
+  setText("#version", release.version || "0.1.2");
   setText("#size", release.size ? formatBytes(release.size) : "待公布");
   setText("#checksum", release.sha256 || "待公布");
   const changelog = document.querySelector("#changelog-content");
   if (changelog) {
     changelog.innerHTML = `
-      <p><strong>${escapeHtml(release.version || "0.1.1")}</strong></p>
+      <p><strong>${escapeHtml(release.version || "0.1.2")}</strong></p>
       <p>${escapeHtml(release.release_notes || release.notes || "最新 Windows 版本已准备好。")}</p>
       <p><a class="button primary" href="${escapeHtml(installerUrl)}">下载 Windows 版</a></p>
     `;
@@ -50,7 +50,7 @@ async function fetchRelease() {
     }
   }
   return {
-    version: "0.1.1",
+    version: "0.1.2",
     installerUrl: releaseState.fallbackUrl,
     notes: "暂时无法获取最新版本信息，请稍后刷新。"
   };

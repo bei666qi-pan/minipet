@@ -11,14 +11,15 @@ const HIGH_PATTERNS = [
 ];
 
 const MEDIUM_PATTERNS = [
-  /写入|保存|下载|生成.*ppt|导出|填写表单|打开外部链接|处理文件|覆盖/i,
-  /write|save|download|ppt|export|fill.*form|external link|overwrite/i
+  /写入|保存|下载|生成.*ppt|生成.*word|生成.*excel|导出|填写表单|打开外部链接|处理文件|覆盖/i,
+  /write|save|download|ppt|word|excel|docx|xlsx|export|fill.*form|external link|overwrite/i
 ];
 
 const ACTION_RISK: Record<ActionType, RiskLevel> = {
   chat: "low",
   search: "low",
   ppt: "medium",
+  office_generate: "medium",
   browser_read: "low",
   browser_fill: "medium",
   browser_submit: "high",

@@ -147,7 +147,9 @@ export function useCompanionRunner() {
 }
 
 function guessTitle(input: string): string {
+  if (/word|docx|报告|简历|方案|纪要|说明书/i.test(input)) return "做文档";
   if (/ppt|演示|幻灯|汇报/i.test(input)) return "做演示";
+  if (/excel|xlsx|表格|清单|计划表|对比表|台账/i.test(input)) return "做表格";
   if (/论文|文献|综述|初稿/i.test(input)) return "写文章";
   if (/文件|文档|pdf|表格|整理|总结/i.test(input)) return "整理文件";
   if (/搜索|资料|联网|查一下|网页/i.test(input)) return "找资料";
@@ -157,7 +159,7 @@ function guessTitle(input: string): string {
 
 function guessRisk(input: string): RiskLevel {
   if (/删除|付款|支付|发送|提交|安装|命令/i.test(input)) return "high";
-  if (/文件|保存|下载|填写|ppt|演示|论文|总结/i.test(input)) return "medium";
+  if (/文件|保存|下载|填写|ppt|word|excel|docx|xlsx|演示|文档|表格|论文|总结/i.test(input)) return "medium";
   return "low";
 }
 

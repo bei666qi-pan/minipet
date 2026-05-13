@@ -33,6 +33,17 @@ describe("PermissionGate", () => {
     expect(decision.requireConfirmation).toBe(true);
   });
 
+  it("allows local office generation in safe mode", () => {
+    const decision = gate.evaluate({
+      mode: "safe",
+      actionType: "office_generate",
+      method: "local.office.generate",
+      prompt: "生成 Word、PPT 或 Excel 文件"
+    });
+    expect(decision.allowed).toBe(true);
+    expect(decision.requireConfirmation).toBe(false);
+  });
+
   it("only allows skill install with full access admin advanced", () => {
     const blocked = gate.evaluate({
       mode: "full",
