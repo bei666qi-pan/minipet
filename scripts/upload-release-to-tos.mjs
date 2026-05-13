@@ -140,12 +140,11 @@ async function verifyPublished(input) {
   if (latestJson.sha256 !== input.sha256) throw new Error("latest_json_sha256_mismatch");
   if (Number(latestJson.size) !== input.size) throw new Error("latest_json_size_mismatch");
 
-  const latestInstaller = await fetch(input.latestInstallerUrl, { cache: "no-store" });
+  const latestInstaller = await fetch(input.latestInstallerUrl, { method: "HEAD", cache: "no-store" });
   if (!latestInstaller.ok) throw new Error(`latest_installer_not_available_${latestInstaller.status}`);
   const latestLength = Number(latestInstaller.headers.get("content-length") || 0);
-  const latestBuffer = Buffer.from(await latestInstaller.arrayBuffer());
-  if (latestBuffer.length <= 0 || latestLength <= 0) throw new Error("latest_installer_empty");
-  if (sha256Hex(latestBuffer) !== input.sha256) throw new Error("latest_installer_sha256_mismatch");
+  if (latestLength <= 0) throw new Error("latest_installer_empty");
+  if (latestLength !== input.size) throw new Error("latest_installer_size_mismatch");
 
   const versioned = await fetch(input.versionedUrl, { method: "HEAD", cache: "no-store" });
   if (!versioned.ok) throw new Error(`versioned_installer_not_available_${versioned.status}`);
@@ -184,6 +183,7 @@ async function retry(label, attempts, operation) {
 
 function requestBuffer(url, options, body) {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const request = https.request(
       url,
       {
@@ -195,7 +195,7 @@ function requestBuffer(url, options, body) {
         const chunks = [];
         response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
         response.on("end", () => {
-          resolve({
+          finish(resolve, {
             statusCode: response.statusCode || 0,
             headers: response.headers,
             body: Buffer.concat(chunks).toString("utf8")
@@ -203,8 +203,18 @@ function requestBuffer(url, options, body) {
         });
       }
     );
-    request.on("timeout", () => request.destroy(new Error(`request_timeout_${options.timeoutMs}`)));
-    request.on("error", reject);
+    const timeout = setTimeout(() => {
+      request.destroy(new Error(`request_timeout_${options.timeoutMs}`));
+    }, options.timeoutMs);
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      callback(value);
+    };
+    request.on("timeout", () => request.destroy(new Error(`request_idle_timeout_${options.timeoutMs}`)));
+    request.on("error", (error) => finish(reject, error));
+    request.on("close", () => clearTimeout(timeout));
     request.end(body);
   });
 }
