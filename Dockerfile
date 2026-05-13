@@ -1,4 +1,4 @@
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-bookworm-slim AS deps
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-bookworm AS deps
 WORKDIR /app
 ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 RUN corepack enable
@@ -13,7 +13,7 @@ COPY apps/website ./apps/website
 COPY design ./design
 RUN pnpm run build:server
 
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-bookworm-slim AS runtime
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-bookworm AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable
