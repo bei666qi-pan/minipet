@@ -3,11 +3,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
-import { REQUESTED_PET_ASSET_FILES } from "./assetManager";
+import { OBSOLETE_PET_ASSET_FILES, REQUESTED_PET_ASSET_FILES } from "./assetManager";
 import type { PermissionMode } from "./permissions/PermissionModes";
 import type { CoreInstallState } from "./core/RuntimeInstaller";
 import { defaultRuntimeDir } from "./core/RuntimeInstaller";
 import { defaultOutputDirectory } from "./output/OutputManager";
+import { isWindowPoint, type WindowPoint } from "./windowGeometry";
+
+export type DesktopSurface = "floatingBall" | "mainWindow";
 
 export interface MiniPetSettings {
   onboarded: boolean;
@@ -38,6 +41,11 @@ export interface MiniPetSettings {
   quietHoursStart: string;
   quietHoursEnd: string;
   talkAutoHideSeconds: number;
+  memoryEnabled: boolean;
+  memoryAutoExtractEnabled: boolean;
+  memoryUseModelCompression: boolean;
+  lastDesktopSurface: DesktopSurface;
+  floatingBallPosition?: WindowPoint;
 }
 
 const DEFAULT_PROJECT_ROOT = "D:\\minipet";
@@ -50,7 +58,7 @@ export function defaultBundledAssetDirectory(): string {
     path.join(process.cwd() || DEFAULT_PROJECT_ROOT, "design", "one"),
     path.join(DEFAULT_PROJECT_ROOT, "design", "one")
   ].filter(Boolean) as string[];
-  return candidates.find(hasRequestedAssetSetSync) ?? candidates[0];
+  return candidates.find(hasCurrentRequestedAssetSetSync) ?? candidates.find(hasRequestedAssetSetSync) ?? candidates[0];
 }
 
 export const DEFAULT_SETTINGS: MiniPetSettings = {
@@ -81,7 +89,11 @@ export const DEFAULT_SETTINGS: MiniPetSettings = {
   quietHoursEnabled: true,
   quietHoursStart: "23:00",
   quietHoursEnd: "08:00",
-  talkAutoHideSeconds: 30
+  talkAutoHideSeconds: 30,
+  memoryEnabled: true,
+  memoryAutoExtractEnabled: true,
+  memoryUseModelCompression: true,
+  lastDesktopSurface: "floatingBall"
 };
 
 export function defaultConfigDir(): string {
@@ -100,8 +112,10 @@ export class ConfigStore {
     try {
       const raw = await fs.readFile(this.filePath, "utf8");
       const parsed = JSON.parse(raw) as Partial<MiniPetSettings>;
+      const shouldPersistDesktopSurfaceDefault = !isDesktopSurface(parsed.lastDesktopSurface);
       this.settings = { ...DEFAULT_SETTINGS, ...parsed };
-      await this.ensureLocalSettings();
+      if (shouldPersistDesktopSurfaceDefault) this.settings.lastDesktopSurface = DEFAULT_SETTINGS.lastDesktopSurface;
+      await this.ensureLocalSettings(shouldPersistDesktopSurfaceDefault);
     } catch {
       this.settings = { ...DEFAULT_SETTINGS };
       await this.ensureLocalSettings();
@@ -125,8 +139,8 @@ export class ConfigStore {
     await fs.writeFile(this.filePath, `${JSON.stringify(this.settings, null, 2)}\n`, "utf8");
   }
 
-  private async ensureLocalSettings(): Promise<void> {
-    let changed = false;
+  private async ensureLocalSettings(forceSave = false): Promise<void> {
+    let changed = forceSave;
     if (!this.settings.cloudDeviceId || !/^mp_[a-f0-9]{32}$/.test(this.settings.cloudDeviceId)) {
       this.settings.cloudDeviceId = `mp_${crypto.randomBytes(16).toString("hex")}`;
       changed = true;
@@ -139,7 +153,15 @@ export class ConfigStore {
       this.settings.aiMode = "cloud";
       changed = true;
     }
-    if (!this.settings.assetDirectory || !(await hasRequestedAssetSet(this.settings.assetDirectory))) {
+    if (!isDesktopSurface(this.settings.lastDesktopSurface)) {
+      this.settings.lastDesktopSurface = "floatingBall";
+      changed = true;
+    }
+    if (this.settings.floatingBallPosition && !isWindowPoint(this.settings.floatingBallPosition)) {
+      delete this.settings.floatingBallPosition;
+      changed = true;
+    }
+    if (!this.settings.assetDirectory || !(await hasCurrentRequestedAssetSet(this.settings.assetDirectory))) {
       this.settings.assetDirectory = defaultBundledAssetDirectory();
       this.settings.assetMapping = {};
       changed = true;
@@ -153,6 +175,11 @@ function hasRequestedAssetSetSync(directory: string | undefined): boolean {
   return Object.values(REQUESTED_PET_ASSET_FILES).every((fileName) => fsSync.existsSync(path.join(directory, fileName)));
 }
 
+function hasCurrentRequestedAssetSetSync(directory: string | undefined): boolean {
+  if (!hasRequestedAssetSetSync(directory)) return false;
+  return !OBSOLETE_PET_ASSET_FILES.some((fileName) => fsSync.existsSync(path.join(directory as string, fileName)));
+}
+
 async function hasRequestedAssetSet(directory: string | undefined): Promise<boolean> {
   if (!directory) return false;
   try {
@@ -161,4 +188,22 @@ async function hasRequestedAssetSet(directory: string | undefined): Promise<bool
   } catch {
     return false;
   }
+}
+
+async function hasCurrentRequestedAssetSet(directory: string | undefined): Promise<boolean> {
+  if (!(await hasRequestedAssetSet(directory))) return false;
+  if (!directory) return false;
+  for (const fileName of OBSOLETE_PET_ASSET_FILES) {
+    try {
+      await fs.access(path.join(directory, fileName));
+      return false;
+    } catch {
+      // Missing obsolete assets are expected for the current 10-state sticker set.
+    }
+  }
+  return true;
+}
+
+function isDesktopSurface(value: unknown): value is DesktopSurface {
+  return value === "floatingBall" || value === "mainWindow";
 }

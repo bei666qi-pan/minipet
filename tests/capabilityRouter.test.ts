@@ -26,4 +26,12 @@ describe("CapabilityRouter", () => {
     const task = router.route("帮我做一个 PPT");
     expect(task.missingQuestion).toBe("演示的主题是什么？");
   });
+
+  it("routes opening Baidu to an open_url task", () => {
+    const task = router.route("打开百度");
+    expect(task.type).toBe("open_url_task");
+    expect(task.actionType).toBe("open_url");
+    expect(task.needsCore).toBe(false);
+    expect(task.urls).toEqual(["https://www.baidu.com/"]);
+  });
 });

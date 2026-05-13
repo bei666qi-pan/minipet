@@ -3,31 +3,27 @@ import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
 
 export function CoreStatusPanel() {
-  const { openClaw, settings, connectOpenClaw } = useSettingsStore();
+  const { openClaw, connectOpenClaw } = useSettingsStore();
   const say = useAppStore((state) => state.say);
   const connected = openClaw?.connected;
   return (
     <section className="panel-section gateway-status">
       <div className="section-title">
         {connected ? <Plug size={18} /> : <WifiOff size={18} />}
-        <span>OpenClaw 高级能力</span>
+        <span>高级能力</span>
       </div>
-      <p className="hint">普通问答不需要 OpenClaw。只有高级自动化任务才会用到这里。</p>
+      <p className="hint">普通聊天可以直接用。处理网页、文件和应用里的复杂任务时，爪爪会先征得你的同意。</p>
       <div className="status-grid">
-        <span>连接</span>
-        <strong>{connected ? "已准备好" : "未连接"}</strong>
-        <span>地址</span>
-        <strong>{openClaw?.url ?? settings?.openClawUrls[0] ?? "ws://127.0.0.1:18789"}</strong>
-        <span>会话</span>
-        <strong>{openClaw?.sessionKey ?? settings?.openClawSessionKey ?? "main"}</strong>
-        <span>范围</span>
-        <strong>{openClaw?.scopes?.join(", ") || "未请求"}</strong>
+        <span>状态</span>
+        <strong>{connected ? "已准备好" : "还没准备好"}</strong>
+        <span>用途</span>
+        <strong>帮你完成更复杂的桌面任务</strong>
       </div>
-      {openClaw?.lastError ? <p className="hint">{openClaw.lastError}</p> : null}
+      {openClaw?.lastError ? <p className="hint">暂时没准备好，稍后再试一次。</p> : null}
       <button
         className="primary-button"
         onClick={() => {
-          void connectOpenClaw().then((status) => say(status.connected ? "OpenClaw 已准备好。" : "暂时没有发现 OpenClaw。"));
+          void connectOpenClaw().then((status) => say(status.connected ? "高级能力已准备好。" : "暂时还没准备好。"));
         }}
       >
         <RefreshCw size={16} /> 重新检查

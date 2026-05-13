@@ -59,5 +59,5 @@ export function TaskTimeline() {
 }
 
 function riskLabel(risk: string): string {
-  return { low: "低风险", medium: "中风险", high: "高风险", critical: "关键风险" }[risk] ?? risk;
+  return { low: "普通", medium: "需要留意", high: "需要确认", critical: "不能直接做" }[risk] ?? "普通";
 }

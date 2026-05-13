@@ -2,6 +2,8 @@ export type PermissionMode = "demo" | "safe" | "assisted" | "full";
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
+export type AuthorizationChoice = "turn" | "switch_assisted";
+
 export type PermissionDecision =
   | {
       allowed: true;
@@ -9,6 +11,19 @@ export type PermissionDecision =
       reason: string;
       risk: RiskLevel;
       scopes: string[];
+      requestable?: false;
+      authorizationChoices?: AuthorizationChoice[];
+      suggestedMode?: PermissionMode;
+    }
+  | {
+      allowed: false;
+      requireConfirmation: true;
+      requestable: true;
+      reason: string;
+      risk: RiskLevel;
+      scopes: string[];
+      authorizationChoices: AuthorizationChoice[];
+      suggestedMode: PermissionMode;
     }
   | {
       allowed: false;
@@ -16,6 +31,9 @@ export type PermissionDecision =
       reason: string;
       risk: RiskLevel;
       scopes: string[];
+      requestable?: false;
+      authorizationChoices?: AuthorizationChoice[];
+      suggestedMode?: PermissionMode;
     };
 
 export type ActionType =

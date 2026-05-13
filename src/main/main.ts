@@ -7,17 +7,20 @@ import { ConfigStore } from "./configStore";
 import { CoreManager } from "./core/CoreManager";
 import { RuntimeInstaller } from "./core/RuntimeInstaller";
 import { OpenAICompatibleClient } from "./llm/OpenAICompatibleClient";
+import { ConversationContextManager, MINIPET_PERSONA_PROMPT } from "./memory/ConversationContextManager";
+import { MemoryStore } from "./memory/MemoryStore";
 import { OpenClawClient } from "./openclaw/OpenClawClient";
 import { OpenClawMock } from "./openclaw/OpenClawMock";
 import { OutputManager } from "./output/OutputManager";
 import { PermissionGate } from "./permissions/PermissionGate";
-import type { ActionType, PermissionContext } from "./permissions/PermissionModes";
+import type { ActionType, AuthorizationChoice, PermissionContext, PermissionDecision, PermissionMode } from "./permissions/PermissionModes";
 import { readAuditLog, redactSecrets } from "./security/auditLog";
 import { assertTrustedSender, type IpcChannel } from "./security/ipcGuard";
 import { validateExternalUrl } from "./security/urlGuard";
 import { SecureStore, type SecretKey } from "./secureStore";
 import { createTray, type TrayActions } from "./trayManager";
-import { createMainWindow, createSettingsWindow } from "./windowManager";
+import { createFloatingBallWindow, createMainWindow, createSettingsWindow, clampFloatingBallPositionForDisplay } from "./windowManager";
+import type { WindowPoint } from "./windowGeometry";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -42,40 +45,50 @@ const coreManager = new CoreManager(runtimeInstaller, openClaw, configStore, sec
 const capabilityRouter = new CapabilityRouter();
 const outputManager = new OutputManager();
 const cloudClient = new MiniPetCloudClient(configStore, secureStore);
+const memoryStore = new MemoryStore();
+const contextManager = new ConversationContextManager(memoryStore);
 
 let mainWindow: BrowserWindow | undefined;
 let settingsWindow: BrowserWindow | undefined;
+let floatingBallWindow: BrowserWindow | undefined;
 let mainTray: ReturnType<typeof createTray> | undefined;
 let isQuitting = false;
+let runtimePassThrough = false;
+let floatingBallPassThrough = false;
 let latestCloudStatus: { online: boolean; message?: string; quotaRemaining?: number } | undefined;
 
 function handle(channel: IpcChannel, listener: (event: IpcMainInvokeEvent, payload: unknown) => Promise<unknown> | unknown): void {
   ipcMain.handle(channel, async (event, payload) => {
-    assertTrustedSender(event, [getMainWindow()?.webContents, getSettingsWindow()?.webContents]);
+    assertTrustedSender(event, [getMainWindow()?.webContents, getSettingsWindow()?.webContents, getFloatingBallWindow()?.webContents]);
     return listener(event, payload);
   });
 }
 
 app.whenReady().then(async () => {
   await configStore.load();
+  await memoryStore.load();
   const settings = configStore.get();
   await assetManager.scan(settings.assetDirectory, settings.assetMapping);
   registerAssetProtocol();
-  getOrCreateMainWindow();
+  registerIpc();
+  if (settings.lastDesktopSurface === "mainWindow") showMainWindow({ persist: false });
+  else showFloatingBall({ persist: false });
   mainTray = createTray({
     show: showMainWindow,
     hide: hideMainWindow,
     toggle: toggleMainWindow,
     openSettings: showSettingsWindow,
     checkForUpdates: () => void checkForUpdates(true),
-    setAlwaysOnTop: (enabled) => getOrCreateMainWindow().setAlwaysOnTop(enabled),
-    isAlwaysOnTop: () => getMainWindow()?.isAlwaysOnTop() ?? true,
+    setAlwaysOnTop: (enabled) => {
+      getMainWindow()?.setAlwaysOnTop(enabled);
+      void configStore.update({ alwaysOnTop: enabled });
+    },
+    isAlwaysOnTop: () => getMainWindow()?.isAlwaysOnTop() ?? configStore.get().alwaysOnTop,
     quit: () => {
       isQuitting = true;
       app.quit();
     }
   } satisfies TrayActions);
-  registerIpc();
   openClaw.on("event", (event) => sendToRenderer("openclaw:event", redactSecrets(event)));
   openClaw.on("status", (status) => sendToRenderer("openclaw:status", redactSecrets(status)));
   coreManager.on("progress", (status) => sendToRenderer("core:progress", redactSecrets(status)));
@@ -111,6 +124,11 @@ function getSettingsWindow(): BrowserWindow | undefined {
   return settingsWindow;
 }
 
+function getFloatingBallWindow(): BrowserWindow | undefined {
+  if (!isUsableWindow(floatingBallWindow)) floatingBallWindow = undefined;
+  return floatingBallWindow;
+}
+
 function getOrCreateMainWindow(): BrowserWindow {
   const existing = getMainWindow();
   if (existing) return existing;
@@ -119,10 +137,21 @@ function getOrCreateMainWindow(): BrowserWindow {
   window.on("close", (event) => {
     if (isQuitting) return;
     event.preventDefault();
-    if (!window.isDestroyed()) window.hide();
+    hideMainWindow();
   });
   window.on("closed", () => {
     if (mainWindow === window) mainWindow = undefined;
+  });
+  return window;
+}
+
+function getOrCreateFloatingBallWindow(): BrowserWindow {
+  const existing = getFloatingBallWindow();
+  if (existing) return existing;
+  const window = createFloatingBallWindow(configStore.get().floatingBallPosition);
+  floatingBallWindow = window;
+  window.on("closed", () => {
+    if (floatingBallWindow === window) floatingBallWindow = undefined;
   });
   return window;
 }
@@ -138,10 +167,19 @@ function getOrCreateSettingsWindow(): BrowserWindow {
   return window;
 }
 
-function showMainWindow(): void {
+function showMainWindow(options: { persist?: boolean } = {}): void {
+  const floatingBall = getFloatingBallWindow();
+  if (floatingBall) {
+    floatingBallPassThrough = false;
+    floatingBall.setIgnoreMouseEvents(false);
+    floatingBall.hide();
+  }
+  runtimePassThrough = false;
   const window = getOrCreateMainWindow();
   window.show();
   window.focus();
+  applyMainWindowMousePolicy();
+  if (options.persist !== false) void configStore.update({ lastDesktopSurface: "mainWindow" });
 }
 
 function showSettingsWindow(): void {
@@ -158,11 +196,34 @@ function closeSettingsWindow(): void {
 function hideMainWindow(): void {
   const window = getMainWindow();
   if (window) window.hide();
+  showFloatingBall();
+}
+
+function showFloatingBall(options: { persist?: boolean } = {}): void {
+  const window = getOrCreateFloatingBallWindow();
+  const position = clampFloatingBallPositionForDisplay(configStore.get().floatingBallPosition ?? pointFromWindow(window));
+  window.setPosition(position.x, position.y, false);
+  floatingBallPassThrough = false;
+  window.setIgnoreMouseEvents(false);
+  if (!window.isVisible()) window.showInactive();
+  window.setAlwaysOnTop(true, "screen-saver");
+  window.moveTop();
+  if (options.persist !== false || !configStore.get().floatingBallPosition) {
+    void configStore.update({
+      ...(options.persist !== false ? { lastDesktopSurface: "floatingBall" as const } : {}),
+      floatingBallPosition: position
+    });
+  }
+}
+
+function pointFromWindow(window: BrowserWindow): WindowPoint {
+  const [x, y] = window.getPosition();
+  return { x, y };
 }
 
 function toggleMainWindow(): void {
-  const window = getOrCreateMainWindow();
-  if (window.isVisible()) window.hide();
+  const window = getMainWindow();
+  if (window?.isVisible()) hideMainWindow();
   else showMainWindow();
 }
 
@@ -179,7 +240,7 @@ function openPetContextMenu(): void {
       click: () => void checkForUpdates(true)
     },
     {
-      label: "隐藏桌宠",
+      label: "收起到悬浮球",
       click: hideMainWindow
     },
     { type: "separator" },
@@ -191,6 +252,19 @@ function openPetContextMenu(): void {
       }
     }
   ]).popup({ window });
+}
+
+function applyMainWindowMousePolicy(): void {
+  const window = getMainWindow();
+  if (!window) return;
+  const settings = configStore.get();
+  window.setIgnoreMouseEvents(Boolean(settings.clickThrough || runtimePassThrough), { forward: true });
+}
+
+function applyFloatingBallMousePolicy(): void {
+  const window = getFloatingBallWindow();
+  if (!window) return;
+  window.setIgnoreMouseEvents(floatingBallPassThrough, { forward: true });
 }
 
 function sendToRenderer(channel: "openclaw:event" | "openclaw:status" | "core:progress" | "cloud:status", payload: unknown): void {
@@ -218,7 +292,7 @@ async function checkForUpdates(showDialog: boolean, notifyOnlyWhenUpdate = false
     if (showDialog && (!notifyOnlyWhenUpdate || hasUpdate)) {
       const options = {
         type: hasUpdate ? "info" : "none",
-        title: "MiniPet 更新",
+        title: "爪爪更新",
         message: hasUpdate ? `发现新版本 ${release.version}` : "当前已是最新版本",
         detail: hasUpdate ? release.notes || "可以前往下载最新版安装包。" : `当前版本：${current}`,
         buttons: hasUpdate ? ["下载", "稍后"] : ["知道了"],
@@ -234,7 +308,7 @@ async function checkForUpdates(showDialog: boolean, notifyOnlyWhenUpdate = false
     const message = error instanceof Error ? error.message : "暂时无法检查更新。";
     if (showDialog) {
       const parent = getMainWindow();
-      const options = { type: "warning", title: "MiniPet 更新", message } as const;
+      const options = { type: "warning", title: "爪爪更新", message } as const;
       if (parent) await dialog.showMessageBox(parent, options);
       else await dialog.showMessageBox(options);
     }
@@ -257,6 +331,77 @@ function registerAssetProtocol(): void {
   });
 }
 
+interface AuthorizationPayload {
+  confirmed?: boolean;
+  authorizationScope?: AuthorizationChoice;
+}
+
+async function permissionModeForScope(current: PermissionMode, scope?: AuthorizationChoice): Promise<PermissionMode> {
+  if (scope !== "switch_assisted") return current;
+  await configStore.update({ permissionMode: "assisted" });
+  return "assisted";
+}
+
+function permissionNeedsUser(decision: PermissionDecision, request: AuthorizationPayload): boolean {
+  if (decision.allowed) return decision.requireConfirmation && !request.confirmed;
+  return Boolean(decision.requestable && !request.authorizationScope);
+}
+
+function permissionDenied(decision: PermissionDecision, request: AuthorizationPayload): boolean {
+  return !decision.allowed && !decision.requestable;
+}
+
+function userPermissionMessage(decision: PermissionDecision): string {
+  if (decision.requestable) return "这一步需要你点头后，我再继续。";
+  if (decision.risk === "critical" || decision.risk === "high") return "这件事可能不安全，爪爪不能直接做。";
+  return "这件事现在还不能直接做。";
+}
+
+async function buildCompanionMessages(currentUserText: string) {
+  const settings = configStore.get();
+  if (!settings.memoryEnabled) {
+    return [
+      { role: "system" as const, content: MINIPET_PERSONA_PROMPT },
+      { role: "user" as const, content: currentUserText }
+    ];
+  }
+  return contextManager.buildMessages({ currentUserText });
+}
+
+async function maybeRememberExchange(userText: string, assistantText: string): Promise<void> {
+  const settings = configStore.get();
+  if (!settings.memoryEnabled) return;
+  await contextManager.recordExchange(userText, assistantText, {
+    memoryEnabled: settings.memoryEnabled,
+    autoExtractEnabled: settings.memoryAutoExtractEnabled,
+    useModelCompression: settings.memoryUseModelCompression,
+    summarize: settings.memoryUseModelCompression ? summarizeWithCurrentModel : undefined
+  });
+}
+
+async function summarizeWithCurrentModel(prompt: string): Promise<string> {
+  const settings = configStore.get();
+  const messages = [
+    { role: "system" as const, content: "你是爪爪的本地上下文压缩器。只输出摘要，不输出解释。" },
+    { role: "user" as const, content: prompt }
+  ];
+  if (settings.aiMode === "cloud") {
+    return (await cloudClient.chat(messages, app.getVersion())).text;
+  }
+  const apiKey = await secureStore.getSecret("openaiApiKey");
+  if (!apiKey) throw new Error("missing_api_key");
+  return (
+    await llmClient.chat(
+      {
+        baseUrl: settings.openAIBaseUrl,
+        apiKey,
+        model: settings.openAIModel
+      },
+      messages
+    )
+  ).text;
+}
+
 function registerIpc(): void {
   handle("app:get-state", async () => ({
     settings: configStore.get(),
@@ -274,7 +419,7 @@ function registerIpc(): void {
     if (patch.assetDirectory || patch.assetMapping) await assetManager.scan(next.assetDirectory, next.assetMapping);
     const window = getMainWindow();
     if (window && typeof patch.alwaysOnTop === "boolean") window.setAlwaysOnTop(patch.alwaysOnTop);
-    if (window && typeof patch.clickThrough === "boolean") window.setIgnoreMouseEvents(patch.clickThrough, { forward: true });
+    if (window && typeof patch.clickThrough === "boolean") applyMainWindowMousePolicy();
     return { settings: next, assets: assetManager.getManifest() };
   });
 
@@ -291,11 +436,23 @@ function registerIpc(): void {
   });
 
   handle("app:open-external", async (_event, payload) => {
-    const { url } = payload as { url: string };
+    const { url, confirmed, authorizationScope } = payload as { url: string } & AuthorizationPayload;
     const result = validateExternalUrl(url);
     if (!result.ok || !result.normalized) return result;
+    const settings = configStore.get();
+    const mode = await permissionModeForScope(settings.permissionMode, authorizationScope);
+    const decision = permissionGate.evaluate({
+      mode,
+      actionType: "open_url",
+      method: "shell.openExternal",
+      prompt: result.normalized,
+      urls: [result.normalized],
+      adminAdvanced: settings.adminAdvanced
+    });
+    if (permissionDenied(decision, { confirmed, authorizationScope })) return { ...result, permission: decision, requiresConfirmation: false, error: userPermissionMessage(decision) };
+    if (permissionNeedsUser(decision, { confirmed, authorizationScope })) return { ...result, permission: decision, requiresConfirmation: true, error: userPermissionMessage(decision) };
     await shell.openExternal(result.normalized);
-    return result;
+    return { ...result, permission: decision };
   });
 
   handle("app:check-update", async () => checkForUpdates(false));
@@ -344,24 +501,26 @@ function registerIpc(): void {
       prompt?: string;
       localRequestId?: string;
       confirmed?: boolean;
+      authorizationScope?: AuthorizationChoice;
     };
     const settings = configStore.get();
+    const mode = await permissionModeForScope(openClaw.status().connected ? settings.permissionMode : "demo", request.authorizationScope);
     const decision = permissionGate.evaluate({
-      mode: openClaw.status().connected ? settings.permissionMode : "demo",
+      mode,
       actionType: request.actionType ?? "chat",
       method: request.method,
       prompt: request.prompt,
       adminAdvanced: settings.adminAdvanced
     });
-    if (!decision.allowed) return { permission: decision, error: decision.reason };
-    if (decision.requireConfirmation && !request.confirmed) {
-      return { permission: decision, requiresConfirmation: true, error: decision.reason };
+    if (permissionDenied(decision, request)) return { permission: decision, error: userPermissionMessage(decision) };
+    if (permissionNeedsUser(decision, request)) {
+      return { permission: decision, requiresConfirmation: true, error: userPermissionMessage(decision) };
     }
     if (!openClaw.status().connected) {
       if (request.method === "chat.send") {
         return { permission: decision, result: await openClawMock.chat(request.params as never) };
       }
-      return { permission: decision, error: "这个任务需要先准备智能核心。你也可以先和 MiniPet 普通聊天。" };
+      return { permission: decision, error: "这件事需要先准备一下。你也可以先和爪爪普通聊天。" };
     }
     const result =
       request.method === "chat.send"
@@ -373,25 +532,26 @@ function registerIpc(): void {
   handle("llm:chat", async (_event, payload) => {
     const { messages } = payload as { messages: Array<{ role: "system" | "user" | "assistant"; content: string }> };
     const settings = configStore.get();
+    const effectiveMessages = settings.memoryEnabled ? await contextManager.augmentMessages(messages) : messages;
     const decision = permissionGate.evaluate({
       mode: "demo",
       actionType: "chat",
-      prompt: messages.map((item) => item.content).join("\n")
+      prompt: effectiveMessages.map((item) => item.content).join("\n")
     });
-    if (!decision.allowed) return { permission: decision, error: decision.reason };
+    if (!decision.allowed) return { permission: decision, error: userPermissionMessage(decision) };
     if (settings.aiMode === "cloud") {
-      const result = await cloudClient.chat(messages, app.getVersion());
+      const result = await cloudClient.chat(effectiveMessages, app.getVersion());
       return { permission: decision, result: redactSecrets(result) };
     }
     const apiKey = await secureStore.getSecret("openaiApiKey");
-    if (!apiKey) return { permission: decision, error: "需要先在高级自带模型模式中保存 API Key。" };
+    if (!apiKey) return { permission: decision, error: "需要先补一下聊天设置。" };
     const result = await llmClient.chat(
       {
         baseUrl: settings.openAIBaseUrl,
         apiKey,
         model: settings.openAIModel
       },
-      messages
+      effectiveMessages
     );
     return { permission: decision, result: redactSecrets(result) };
   });
@@ -407,12 +567,31 @@ function registerIpc(): void {
     });
   });
 
+  handle("memory:list", async () => memoryStore.list());
+
+  handle("memory:delete", async (_event, payload) => {
+    const { id } = payload as { id: string };
+    return { deleted: await memoryStore.delete(id) };
+  });
+
+  handle("memory:clear", async () => {
+    await memoryStore.clear();
+    return { cleared: true };
+  });
+
+  handle("permission:authorize-turn", async (_event, payload) => {
+    const { authorizationScope } = (payload ?? {}) as { authorizationScope?: AuthorizationChoice };
+    if (authorizationScope === "switch_assisted") await configStore.update({ permissionMode: "assisted" });
+    return { authorized: true, authorizationScope: authorizationScope ?? "turn", settings: configStore.get() };
+  });
+
   handle("companion:run-task", async (_event, payload) => {
     const request = payload as {
       input: string;
       files?: string[];
       allowInstall?: boolean;
       confirmed?: boolean;
+      authorizationScope?: AuthorizationChoice;
       localRequestId: string;
     };
     const settings = configStore.get();
@@ -424,44 +603,44 @@ function registerIpc(): void {
     if (route.needsCore) {
       const core = await coreManager.ensureReady({ allowInstall: Boolean(request.allowInstall) });
       if (core.needsAuthorization) return { route, needsCoreAuthorization: true, core };
-      if (!core.connected) return { route, error: core.lastError || "智能核心还没有准备好，请重试。" };
+      if (!core.connected) return { route, error: core.lastError || "这件事还没准备好，请稍后再试。" };
     }
 
+    const permissionMode = await permissionModeForScope(settings.permissionMode, request.authorizationScope);
     const decision = permissionGate.evaluate({
-      mode: route.needsCore ? settings.permissionMode : "demo",
+      mode: permissionMode,
       actionType: route.actionType,
       method: route.needsCore ? "chat.send" : "local.chat",
       prompt: route.prompt,
       paths: request.files,
+      urls: route.urls,
       userSelectedPaths: request.files,
       adminAdvanced: settings.adminAdvanced
     });
-    if (!decision.allowed) return { route, permission: decision, error: decision.reason };
-    if (decision.requireConfirmation && !request.confirmed) {
-      return { route, permission: decision, requiresConfirmation: true, error: decision.reason };
+    if (permissionDenied(decision, request)) return { route, permission: decision, error: userPermissionMessage(decision) };
+    if (permissionNeedsUser(decision, request)) {
+      return { route, permission: decision, requiresConfirmation: true, error: userPermissionMessage(decision) };
     }
 
     let text = "";
     let openClawResult: unknown;
-    if (route.needsCore) {
+    if (route.actionType === "open_url" && route.urls?.[0]) {
+      await shell.openExternal(route.urls[0]);
+      text = `已经打开：${route.urls[0]}`;
+    } else if (route.needsCore) {
+      const content = settings.memoryEnabled ? await contextManager.buildPrompt(route.prompt, request.input) : route.prompt;
       const result = await openClaw.chatSend({
-        content: route.prompt,
+        content,
         sessionKey: settings.openClawSessionKey,
         localRequestId: request.localRequestId,
         model: settings.openAIModel
       });
       openClawResult = result;
-      text = result.text || "任务已经交给智能核心，后续进度会显示在记录里。";
+      text = result.text || "我已经开始处理，后续进度会显示在记录里。";
     } else if (settings.aiMode === "cloud") {
-      const result = await cloudClient.chat(
-        [
-          { role: "system", content: "你是 MiniPet 桌面陪伴助手，请用简短、清楚、中文的新手友好语气回答。" },
-          { role: "user", content: request.input }
-        ],
-        app.getVersion()
-      );
+      const result = await cloudClient.chat(await buildCompanionMessages(request.input), app.getVersion());
       text = result.text;
-    } else {
+    } else if (settings.aiMode === "custom") {
       const apiKey = await secureStore.getSecret("openaiApiKey");
       if (!apiKey) return { route, needsModelAuthorization: true };
       const result = await llmClient.chat(
@@ -470,10 +649,7 @@ function registerIpc(): void {
           apiKey,
           model: settings.openAIModel
         },
-        [
-          { role: "system", content: "你是 MiniPet 桌面陪伴助手，请用简短、清楚、中文的新手友好语气回答。" },
-          { role: "user", content: request.input }
-        ]
+        await buildCompanionMessages(request.input)
       );
       text = result.text;
     }
@@ -484,6 +660,8 @@ function registerIpc(): void {
         : route.output === "paper"
           ? await outputManager.createPaper({ title: route.title, body: text, outputDirectory: settings.outputDirectory })
           : [];
+
+    await maybeRememberExchange(request.input, text);
 
     return {
       route,
@@ -516,10 +694,21 @@ function registerIpc(): void {
 
   handle("window:set-click-through", async (_event, payload) => {
     const enabled = Boolean((payload as { enabled?: boolean })?.enabled);
-    const window = getMainWindow();
-    if (window) window.setIgnoreMouseEvents(enabled, { forward: true });
     await configStore.update({ clickThrough: enabled });
+    applyMainWindowMousePolicy();
     return { enabled };
+  });
+
+  handle("window:set-pass-through", async (event, payload) => {
+    const enabled = Boolean((payload as { enabled?: boolean })?.enabled);
+    if (event.sender.id === getFloatingBallWindow()?.webContents.id) {
+      floatingBallPassThrough = enabled;
+      applyFloatingBallMousePolicy();
+      return { enabled };
+    }
+    runtimePassThrough = enabled;
+    applyMainWindowMousePolicy();
+    return { enabled: runtimePassThrough };
   });
 
   handle("window:hide", async () => {
@@ -532,13 +721,33 @@ function registerIpc(): void {
     return { shown: true };
   });
 
-  handle("window:move-by", async (_event, payload) => {
+  handle("window:expand-from-floating-ball", async () => {
+    showMainWindow();
+    return { expanded: true };
+  });
+
+  handle("window:collapse-to-floating-ball", async () => {
+    hideMainWindow();
+    return { collapsed: true };
+  });
+
+  handle("window:move-by", async (event, payload) => {
     const { dx, dy } = (payload ?? {}) as { dx?: number; dy?: number };
+    const deltaX = Math.round(Number(dx) || 0);
+    const deltaY = Math.round(Number(dy) || 0);
+    const floatingBall = getFloatingBallWindow();
+    if (floatingBall && event.sender.id === floatingBall.webContents.id) {
+      const current = pointFromWindow(floatingBall);
+      const next = clampFloatingBallPositionForDisplay({ x: current.x + deltaX, y: current.y + deltaY });
+      floatingBall.setPosition(next.x, next.y, false);
+      await configStore.update({ floatingBallPosition: next });
+      return { moved: true, target: "floatingBall" };
+    }
     const window = getMainWindow();
     if (!window) return { moved: false };
     const [x, y] = window.getPosition();
-    window.setPosition(x + Math.round(Number(dx) || 0), y + Math.round(Number(dy) || 0), false);
-    return { moved: true };
+    window.setPosition(x + deltaX, y + deltaY, false);
+    return { moved: true, target: "mainWindow" };
   });
 
   handle("window:open-settings", async () => {

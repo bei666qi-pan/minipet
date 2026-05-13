@@ -74,6 +74,8 @@ async function routeRequest(context: RequestContext, request: http.IncomingMessa
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) return await serveWebsiteAsset(response, "index.html");
     if (request.method === "GET" && url.pathname === "/website/app.js") return await serveWebsiteAsset(response, "app.js");
     if (request.method === "GET" && url.pathname === "/website/styles.css") return await serveWebsiteAsset(response, "styles.css");
+    if (request.method === "GET" && url.pathname === "/website/assets/minipet-logo.png") return await serveWebsiteAsset(response, "assets/minipet-logo.png");
+    if (request.method === "GET" && url.pathname === "/favicon.png") return await serveWebsiteAsset(response, "assets/minipet-logo.png");
     if (request.method === "GET" && ["/changelog", "/privacy", "/terms"].includes(url.pathname)) return await serveWebsiteAsset(response, "index.html");
 
     if (request.method === "GET" && (url.pathname === "/admin" || url.pathname === "/admin/")) return await serveAdminAsset(response, "index.html");
@@ -119,7 +121,7 @@ function sendHealth(context: RequestContext, response: http.ServerResponse): voi
 async function handleBootstrap(context: RequestContext, request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
   const body = await readJson(request);
   const deviceId = sanitizeDeviceId(asString(body.device_id) || asString(body.deviceId));
-  const user = await context.store.bootstrapUser({ deviceId, displayName: "MiniPet Device" });
+  const user = await context.store.bootstrapUser({ deviceId, displayName: "爪爪设备" });
   await addAudit(context, "device", user.id, "bootstrap", user.id, {
     appVersion: asString(body.app_version) || asString(body.appVersion) || "",
     platform: asString(body.platform) || ""
@@ -444,7 +446,7 @@ function normalizeMessages(value: unknown): ChatMessage[] {
 function highRiskPayload(text: string, words: string[]): { highRisk: boolean; message?: string } {
   const highRiskWord = findWord(text, words);
   return highRiskWord
-    ? { highRisk: true, message: "This request may affect files, payments, messages, or external actions. MiniPet will ask before high-risk operations." }
+    ? { highRisk: true, message: "这件事影响比较大，爪爪会先问你。" }
     : { highRisk: false };
 }
 
@@ -515,11 +517,11 @@ async function serveAdminAsset(response: http.ServerResponse, fileName: "index.h
   return serveStaticAsset(response, ADMIN_ASSET_ROOT, fileName);
 }
 
-async function serveWebsiteAsset(response: http.ServerResponse, fileName: "index.html" | "app.js" | "styles.css"): Promise<void> {
+async function serveWebsiteAsset(response: http.ServerResponse, fileName: "index.html" | "app.js" | "styles.css" | "assets/minipet-logo.png"): Promise<void> {
   return serveStaticAsset(response, WEBSITE_ASSET_ROOT, fileName);
 }
 
-async function serveStaticAsset(response: http.ServerResponse, root: string, fileName: "index.html" | "app.js" | "styles.css"): Promise<void> {
+async function serveStaticAsset(response: http.ServerResponse, root: string, fileName: "index.html" | "app.js" | "styles.css" | "assets/minipet-logo.png"): Promise<void> {
   const filePath = path.join(root, fileName);
   try {
     const content = await fs.readFile(filePath);
@@ -536,6 +538,7 @@ function sendJson(response: http.ServerResponse, status: number, body: unknown):
 }
 
 function contentType(fileName: string): string {
+  if (fileName.endsWith(".png")) return "image/png";
   if (fileName.endsWith(".js")) return "text/javascript; charset=utf-8";
   if (fileName.endsWith(".css")) return "text/css; charset=utf-8";
   return "text/html; charset=utf-8";

@@ -5,6 +5,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import { AssetMapper } from "./AssetMapper";
 import { AuditLogPanel } from "./AuditLogPanel";
 import { CoreStatusPanel } from "./CoreStatusPanel";
+import { MemoryPanel } from "./MemoryPanel";
 import { ModelPanel } from "./ModelPanel";
 import { SafetyModeSwitch } from "./SafetyModeSwitch";
 import { TaskTimeline } from "./TaskTimeline";
@@ -38,7 +39,7 @@ export function SettingsPanel({ standalone = false }: Props) {
       <header className="panel-header settings-header">
         <div className="room-title">
           <Home size={21} />
-          <strong>MiniPet 设置</strong>
+          <strong>爪爪设置</strong>
         </div>
         <button title="关闭" onClick={close}>
           <X size={18} />
@@ -60,7 +61,7 @@ export function SettingsPanel({ standalone = false }: Props) {
                 <Shield size={18} />
                 <span>默认托管模式</span>
               </div>
-              <p>MiniPet 默认直接连接官方云端。普通用户不需要填写 URL、API Key，也不需要配置模型供应商。</p>
+              <p>爪爪默认可以直接聊天。普通用户不需要填写复杂配置。</p>
               <div className="friendly-checks">
                 <span>匿名设备 ID</span>
                 <span>默认 200 万 token 额度</span>
@@ -100,7 +101,7 @@ export function SettingsPanel({ standalone = false }: Props) {
                 />
                 <span>保持在桌面上方陪伴</span>
               </label>
-              <button onClick={() => void window.minipet.invoke("window:hide")}>
+              <button onClick={() => void window.minipet.invoke("window:collapse-to-floating-ball")}>
                 <Power size={16} /> 隐藏桌宠
               </button>
             </section>
@@ -109,6 +110,7 @@ export function SettingsPanel({ standalone = false }: Props) {
         ) : null}
 
         {tab === "陪伴" ? (
+          <>
           <section className="panel-section">
             <div className="section-title">
               <Bell size={18} />
@@ -116,7 +118,7 @@ export function SettingsPanel({ standalone = false }: Props) {
             </div>
             <label className="checkbox-line">
               <input type="checkbox" checked={settings.proactiveSpeechEnabled} onChange={(event) => void update({ proactiveSpeechEnabled: event.target.checked })} />
-              <span>允许 MiniPet 低打扰地主动开口</span>
+              <span>允许爪爪低打扰地主动开口</span>
             </label>
             <label className="field">
               <span>对话入口闲置后自动隐藏（秒）</span>
@@ -147,6 +149,8 @@ export function SettingsPanel({ standalone = false }: Props) {
               </label>
             </div>
           </section>
+          <MemoryPanel />
+          </>
         ) : null}
 
         {tab === "记录" ? (
@@ -167,9 +171,9 @@ export function SettingsPanel({ standalone = false }: Props) {
           <section className="panel-section">
             <div className="section-title">
               <ScrollText size={18} />
-              <span>关于 MiniPet</span>
+              <span>关于爪爪</span>
             </div>
-            <p>MiniPet 是低打扰桌面陪伴入口。点击桌宠即可打开唯一对话入口；涉及文件、网页、提交等敏感动作时，会先弹窗确认。</p>
+            <p>爪爪是低打扰桌面陪伴入口。点击桌宠即可打开唯一聊天框；离开聊天框做事前，会先用简单的话问你。</p>
             <p className="hint">默认不会采集真实姓名、手机号或邮箱。托管模式只使用匿名设备 ID 识别额度。</p>
           </section>
         ) : null}

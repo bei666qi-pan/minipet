@@ -18,6 +18,16 @@ export interface LlmChatResult {
   streamingUsed: boolean;
 }
 
+type JsonRecord = Record<string, unknown>;
+
+const EMPTY_MODEL_RESPONSE_MESSAGE = "模型返回了空内容，请稍后再试或检查模型配置。";
+
+class EmptyModelResponseError extends Error {
+  constructor() {
+    super(EMPTY_MODEL_RESPONSE_MESSAGE);
+  }
+}
+
 export class OpenAICompatibleClient {
   async listModels(config: LlmClientConfig): Promise<string[]> {
     const urls = uniqueBaseUrls(config.baseUrl);
@@ -40,7 +50,7 @@ export class OpenAICompatibleClient {
   async chat(config: LlmClientConfig, messages: LlmChatMessage[]): Promise<LlmChatResult> {
     if (!config.apiKey) {
       return {
-        text: "自带模型模式还没有保存 API Key。你也可以切回 MiniPet 托管模式直接聊天。",
+        text: "爪爪还不能用你的自带聊天。你也可以切回默认聊天直接使用。",
         baseUrlUsed: config.baseUrl,
         model: config.model,
         streamingUsed: false
@@ -64,7 +74,7 @@ export class OpenAICompatibleClient {
   }
 
   async testConnection(config: LlmClientConfig): Promise<{ ok: boolean; message: string; baseUrlUsed?: string }> {
-    if (!config.apiKey) return { ok: false, message: "请先保存自己的 API Key。" };
+    if (!config.apiKey) return { ok: false, message: "请先填写聊天凭证。" };
     const urls = uniqueBaseUrls(config.baseUrl);
     for (const baseUrl of urls) {
       try {
@@ -83,7 +93,7 @@ export class OpenAICompatibleClient {
         // Continue to normalized /v1 base.
       }
     }
-    return { ok: false, message: "连接失败。已尝试原始 Base URL 和 /v1 规范化地址。" };
+    return { ok: false, message: "连接失败，请检查地址和凭证后再试。" };
   }
 
   private async chatOnce(baseUrl: string, config: LlmClientConfig, messages: LlmChatMessage[], stream: boolean): Promise<LlmChatResult> {
@@ -103,15 +113,18 @@ export class OpenAICompatibleClient {
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(`模型接口返回 ${response.status}：${text.slice(0, 160)}`);
+      throw new Error(`模型接口返回 ${response.status}: ${text.slice(0, 160)}`);
     }
     if (stream && response.body) {
       const text = await readOpenAIStream(response.body);
+      if (!hasVisibleText(text)) throw new EmptyModelResponseError();
       return { text, baseUrlUsed: baseUrl, model: config.model, streamingUsed: true };
     }
-    const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const json = await response.json();
+    const text = extractChatText(json);
+    if (!hasVisibleText(text)) throw new EmptyModelResponseError();
     return {
-      text: json.choices?.[0]?.message?.content ?? "模型没有返回内容。",
+      text,
       baseUrlUsed: baseUrl,
       model: config.model,
       streamingUsed: false
@@ -143,17 +156,80 @@ async function readOpenAIStream(body: ReadableStream<Uint8Array>): Promise<strin
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const json = JSON.parse(payload) as { choices?: Array<{ delta?: { content?: string } }> };
-        output += json.choices?.[0]?.delta?.content ?? "";
-      } catch {
-        // Ignore malformed stream fragments from partial compatible gateways.
-      }
-    }
+    for (const line of lines) output += extractSseLineText(line);
   }
-  return output || "模型没有返回内容。";
+  buffer += decoder.decode();
+  if (buffer.trim()) output += extractSseLineText(buffer);
+  return output;
+}
+
+function extractSseLineText(line: string): string {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return "";
+  const payload = trimmed.slice(5).trim();
+  if (!payload || payload === "[DONE]") return "";
+  try {
+    return extractStreamText(JSON.parse(payload));
+  } catch {
+    // Ignore malformed stream fragments from partial compatible gateways.
+    return "";
+  }
+}
+
+function extractChatText(value: unknown): string {
+  const record = asRecord(value);
+  if (!record) return "";
+  const choices = Array.isArray(record.choices) ? record.choices : [];
+  for (const choice of choices) {
+    const text = extractChoiceText(choice);
+    if (hasVisibleText(text)) return text.trim();
+  }
+  return extractFirstContent(record, ["text", "output_text"]).trim();
+}
+
+function extractStreamText(value: unknown): string {
+  const record = asRecord(value);
+  if (!record) return "";
+  const choices = Array.isArray(record.choices) ? record.choices : [];
+  for (const choice of choices) {
+    const text = extractChoiceText(choice);
+    if (hasVisibleText(text)) return text;
+  }
+  return extractFirstContent(record, ["text", "output_text"]);
+}
+
+function extractChoiceText(value: unknown): string {
+  const record = asRecord(value);
+  if (!record) return "";
+  const delta = asRecord(record.delta);
+  const deltaText = delta ? extractFirstContent(delta, ["content", "text", "output_text"]) : "";
+  if (hasVisibleText(deltaText)) return deltaText;
+  const message = asRecord(record.message);
+  const messageText = message ? extractFirstContent(message, ["content", "text", "output_text"]) : "";
+  if (hasVisibleText(messageText)) return messageText;
+  return extractFirstContent(record, ["text", "output_text"]);
+}
+
+function extractFirstContent(record: JsonRecord, keys: string[]): string {
+  for (const key of keys) {
+    const text = extractContentText(record[key]);
+    if (hasVisibleText(text)) return text;
+  }
+  return "";
+}
+
+function extractContentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(extractContentText).join("");
+  const record = asRecord(value);
+  if (!record) return "";
+  return extractFirstContent(record, ["text", "content", "output_text"]);
+}
+
+function hasVisibleText(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+function asRecord(value: unknown): JsonRecord | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : undefined;
 }

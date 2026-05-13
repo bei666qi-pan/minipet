@@ -63,7 +63,7 @@ export function isSupportedNodeVersion(output: string): boolean {
 export class RuntimeInstaller extends EventEmitter {
   private state: RuntimeProgress = {
     state: "not_started",
-    label: "智能核心还没有准备"
+    label: "高级能力还没有准备"
   };
 
   getState(): RuntimeProgress {
@@ -71,32 +71,32 @@ export class RuntimeInstaller extends EventEmitter {
   }
 
   async ensureInstalled(runtimeDir = defaultRuntimeDir()): Promise<RuntimeInstallResult> {
-    this.progress("checking", "我在检查智能核心");
+    this.progress("checking", "我在检查高级能力");
     await fs.mkdir(runtimeDir, { recursive: true });
 
     const existing = await this.findOpenClawCommand(runtimeDir);
     if (existing) {
-      this.progress("ready", "智能核心已准备好");
-      return { ok: true, command: existing, runtimeDir, state: "ready", message: "智能核心已准备好。" };
+      this.progress("ready", "高级能力已准备好");
+      return { ok: true, command: existing, runtimeDir, state: "ready", message: "高级能力已准备好。" };
     }
 
     this.progress("downloading", "我在下载运行环境");
     const nodeDir = await this.ensurePortableNode(runtimeDir);
     const npmCommand = path.join(nodeDir, "npm.cmd");
 
-    this.progress("installing", "我在安装智能核心");
+    this.progress("installing", "我在安装高级能力");
     const prefix = path.join(runtimeDir, "smart-core");
     await fs.mkdir(prefix, { recursive: true });
     await runProcess(npmCommand, ["install", "--prefix", prefix, OPENCLAW_PACKAGE, "--no-fund", "--no-audit"], runtimeDir, 180000);
 
     const command = await this.findOpenClawCommand(runtimeDir);
     if (!command) {
-      this.progress("failed", "智能核心安装后没有找到启动入口");
-      return { ok: false, runtimeDir, state: "failed", message: "智能核心安装后没有找到启动入口，请重试。" };
+      this.progress("failed", "高级能力安装后没有找到启动入口");
+      return { ok: false, runtimeDir, state: "failed", message: "高级能力安装后没有找到启动入口，请重试。" };
     }
 
-    this.progress("ready", "智能核心已准备好");
-    return { ok: true, command, runtimeDir, state: "ready", message: "智能核心已准备好。" };
+    this.progress("ready", "高级能力已准备好");
+    return { ok: true, command, runtimeDir, state: "ready", message: "高级能力已准备好。" };
   }
 
   async findOpenClawCommand(runtimeDir = defaultRuntimeDir()): Promise<string | undefined> {
@@ -214,7 +214,7 @@ export async function runProcess(command: string, args: string[], cwd: string, t
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error("准备智能核心超时，请稍后重试。"));
+      reject(new Error("准备高级能力超时，请稍后重试。"));
     }, timeoutMs);
     child.stdout?.on("data", (chunk) => {
       stdout += String(chunk);
@@ -229,7 +229,7 @@ export async function runProcess(command: string, args: string[], cwd: string, t
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(stderr.trim() || stdout.trim() || "智能核心准备失败。"));
+      else reject(new Error(stderr.trim() || stdout.trim() || "高级能力准备失败。"));
     });
   });
 }

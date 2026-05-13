@@ -9,11 +9,8 @@ export type PetState =
   | "working_guide"
   | "success_cheer"
   | "idle_calm"
-  | "sleepy_rest"
-  | "shy_smile"
   | "surprised_alert"
   | "apology_sad"
-  | "reminder_warning"
   | "laptop_working"
   | "dragging";
 
@@ -42,11 +39,8 @@ export const PET_STATE_KEYS: PetState[] = [
   "working_guide",
   "success_cheer",
   "idle_calm",
-  "sleepy_rest",
-  "shy_smile",
   "surprised_alert",
   "apology_sad",
-  "reminder_warning",
   "laptop_working",
   "dragging"
 ];
@@ -58,14 +52,13 @@ export const REQUESTED_PET_ASSET_FILES: Record<PetState, string> = {
   working_guide: "Working_Guide.png",
   success_cheer: "Success_Cheer.png",
   idle_calm: "Idle_Calm.png",
-  sleepy_rest: "Sleepy_Rest.png",
-  shy_smile: "Shy_Smile.png",
   surprised_alert: "Surprised_Alert.png",
   apology_sad: "Apology_Sad.png",
-  reminder_warning: "Reminder_Warning.png",
   laptop_working: "Laptop_Working.png",
   dragging: "pet_dragging.png"
 };
+
+export const OBSOLETE_PET_ASSET_FILES = ["Sleepy_Rest.png", "Shy_Smile.png", "Reminder_Warning.png"] as const;
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
@@ -77,23 +70,26 @@ const LEGACY_STATE_ALIASES: Record<string, PetState> = {
   file_working: "laptop_working",
   success: "success_cheer",
   error: "apology_sad",
-  sleeping: "sleepy_rest",
-  warning: "reminder_warning"
+  sleeping: "idle_calm",
+  sleep: "idle_calm",
+  sleepy_rest: "idle_calm",
+  night: "idle_calm",
+  shy_smile: "idle_welcome",
+  reminder_warning: "surprised_alert",
+  warning: "surprised_alert",
+  permission: "surprised_alert"
 };
 
 const STATE_KEYWORDS: Array<[PetState, RegExp]> = [
   ["dragging", /pet[_-\s]*dragging|dragging|拖拽|拖动/i],
-  ["idle_calm", /idle[_-\s]*calm|calm|安静|待机|低打扰/i],
-  ["idle_welcome", /idle[_-\s]*welcome|welcome|默认|空闲|欢迎/i],
+  ["idle_calm", /idle[_-\s]*calm|calm|sleep|sleepy|rest|night|安静|待机|低打扰|困倦|休息|夜间/i],
+  ["idle_welcome", /idle[_-\s]*welcome|welcome|shy|smile|默认|空闲|欢迎|亲和|害羞|夸奖|初次见面/i],
   ["listening", /listening|listen|mic|voice|倾听|语音|输入/i],
   ["thinking", /thinking|think|plan|分析|规划|思考/i],
   ["working_guide", /working[_-\s]*guide|guide|board|指示|讲解|计划/i],
   ["success_cheer", /success|cheer|done|完成|成功|庆祝|鼓励/i],
-  ["sleepy_rest", /sleep|sleepy|rest|night|困倦|休息|夜间/i],
-  ["shy_smile", /shy|smile|亲和|害羞|夸奖|初次见面/i],
-  ["surprised_alert", /surprised|surprise|alert|异常|惊讶|突然|问题/i],
+  ["surprised_alert", /surprised|surprise|alert|reminder|warning|warn|异常|惊讶|突然|问题|高危|确认|提醒|不要忘记/i],
   ["apology_sad", /apology|sorry|sad|fail|error|失败|道歉|委屈|权限不足/i],
-  ["reminder_warning", /reminder|warning|warn|高危|确认|提醒|不要忘记/i],
   ["laptop_working", /laptop|computer|openclaw|file|document|整理|电脑|工作|总结/i]
 ];
 
@@ -117,8 +113,8 @@ export function makeAssetId(absolutePath: string): string {
   return crypto.createHash("sha1").update(path.resolve(absolutePath).toLowerCase()).digest("hex").slice(0, 16);
 }
 
-export function makeAssetUrl(id: string): string {
-  return `minipet-asset://local/${id}`;
+export function makeAssetUrl(id: string, version?: string): string {
+  return `minipet-asset://local/${id}${version ? `?v=${encodeURIComponent(version)}` : ""}`;
 }
 
 export function isPathInside(child: string, parent: string): boolean {
@@ -146,13 +142,14 @@ export class AssetManager {
       const absolutePath = path.join(resolvedDirectory, entry.name);
       const stat = await fs.stat(absolutePath);
       const id = makeAssetId(absolutePath);
+      const version = `${Math.trunc(stat.mtimeMs)}-${stat.size}`;
       assets.push({
         id,
         fileName: entry.name,
         absolutePath,
         extension,
         stateGuess: guessPetState(entry.name),
-        url: makeAssetUrl(id),
+        url: makeAssetUrl(id, version),
         size: stat.size,
         updatedAt: stat.mtime.toISOString()
       });

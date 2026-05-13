@@ -33,10 +33,10 @@ export function ModelPanel() {
         <ServerCog size={18} />
         <span>模型模式</span>
       </div>
-      <p className="hint">默认使用 MiniPet 托管模式。普通用户不需要填写任何地址或密钥。</p>
+      <p className="hint">默认使用爪爪托管聊天。普通用户不需要填写任何地址或密钥。</p>
       <div className="segmented">
         <button className={current.aiMode === "cloud" ? "active" : ""} onClick={() => void update({ aiMode: "cloud" })}>
-          MiniPet 托管模式
+          爪爪托管聊天
         </button>
         <button className={current.aiMode === "custom" ? "active" : ""} onClick={() => void update({ aiMode: "custom" })}>
           使用自己的模型
@@ -49,7 +49,7 @@ export function ModelPanel() {
             <CheckCircle2 size={14} /> 已隐藏技术配置
           </span>
           <span>
-            <Wifi size={14} /> 连接 MiniPet 云端
+            <Wifi size={14} /> 连接爪爪聊天
           </span>
         </div>
       ) : (
@@ -83,7 +83,7 @@ export function ModelPanel() {
             </button>
           </div>
           {testMessage ? <p className="hint">{testMessage}</p> : null}
-          <p className="hint">自带模型模式会从桌面端直连你的 OpenAI-compatible API；你的 Key 不会发送到 MiniPet 后端。</p>
+          <p className="hint">自带聊天会从桌面端连接你自己的服务；密钥不会发送到爪爪后端。</p>
         </>
       )}
       {!secrets?.encryptionAvailable ? <p className="warning-line">当前系统无法使用 Electron safeStorage 安全持久化密钥。</p> : null}

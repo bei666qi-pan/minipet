@@ -1,20 +1,24 @@
 import path from "node:path";
-import { BrowserWindow, app, screen, shell } from "electron";
+import { BrowserWindow, app, screen, shell, type Rectangle } from "electron";
+import { brandAssetPath } from "./brandAssets";
 import { validateExternalUrl } from "./security/urlGuard";
+import {
+  FLOATING_BALL_SIZE,
+  clampFloatingBallPosition,
+  defaultFloatingBallPosition,
+  type WindowPoint
+} from "./windowGeometry";
 
 export function createMainWindow(): BrowserWindow {
-  const width = 460;
-  const height = 680;
   const { workArea } = screen.getPrimaryDisplay();
-  const x = Math.max(workArea.x + 24, workArea.x + workArea.width - width - 24);
-  const y = Math.max(workArea.y + 24, workArea.y + workArea.height - height - 24);
+  const bounds = fitBoundsToWorkArea(workArea, { width: 460, height: 680, minWidth: 340, minHeight: 480 });
   const window = new BrowserWindow({
-    x,
-    y,
-    width,
-    height,
-    minWidth: 340,
-    minHeight: 480,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: bounds.minWidth,
+    minHeight: bounds.minHeight,
     transparent: true,
     frame: false,
     resizable: true,
@@ -22,7 +26,8 @@ export function createMainWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: false,
     backgroundColor: "#00000000",
-    title: "MiniPet",
+    title: "爪爪",
+    icon: brandAssetPath("icon.ico"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -58,19 +63,62 @@ export function createMainWindow(): BrowserWindow {
   return window;
 }
 
-export function createSettingsWindow(): BrowserWindow {
-  const width = 820;
-  const height = 720;
+export function createFloatingBallWindow(position?: WindowPoint): BrowserWindow {
+  const size = FLOATING_BALL_SIZE;
   const { workArea } = screen.getPrimaryDisplay();
-  const x = Math.max(workArea.x + 24, workArea.x + Math.round((workArea.width - width) / 2));
-  const y = Math.max(workArea.y + 24, workArea.y + Math.round((workArea.height - height) / 2));
+  const initial = position ? clampFloatingBallPosition(position, workArea, size) : defaultFloatingBallPosition(workArea, size);
   const window = new BrowserWindow({
-    x,
-    y,
-    width,
-    height,
-    minWidth: 680,
-    minHeight: 560,
+    x: initial.x,
+    y: initial.y,
+    width: size,
+    height: size,
+    minWidth: size,
+    minHeight: size,
+    maxWidth: size,
+    maxHeight: size,
+    transparent: true,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    show: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    backgroundColor: "#00000000",
+    title: "爪爪",
+    icon: brandAssetPath("icon.ico"),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      preload: path.join(app.getAppPath(), "dist-main", "preload.js")
+    }
+  });
+
+  attachNavigationGuards(window);
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    void window.loadURL(`${process.env.VITE_DEV_SERVER_URL}#/floating-ball`);
+  } else {
+    void window.loadFile(path.join(app.getAppPath(), "dist", "renderer", "index.html"), { hash: "/floating-ball" });
+  }
+
+  return window;
+}
+
+export function createSettingsWindow(): BrowserWindow {
+  const { workArea } = screen.getPrimaryDisplay();
+  const bounds = fitBoundsToWorkArea(workArea, { width: 820, height: 720, minWidth: 680, minHeight: 560, centered: true });
+  const window = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: bounds.minWidth,
+    minHeight: bounds.minHeight,
     transparent: false,
     frame: true,
     resizable: true,
@@ -78,7 +126,8 @@ export function createSettingsWindow(): BrowserWindow {
     alwaysOnTop: false,
     skipTaskbar: false,
     backgroundColor: "#fffaf7",
-    title: "MiniPet 设置",
+    icon: brandAssetPath("icon.ico"),
+    title: "爪爪设置",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -97,6 +146,42 @@ export function createSettingsWindow(): BrowserWindow {
     void window.loadFile(path.join(app.getAppPath(), "dist", "renderer", "index.html"), { hash: "/settings" });
   }
   return window;
+}
+
+export function clampFloatingBallPositionForDisplay(position: WindowPoint): WindowPoint {
+  const display = screen.getDisplayNearestPoint(position);
+  return clampFloatingBallPosition(position, display.workArea, FLOATING_BALL_SIZE);
+}
+
+function fitBoundsToWorkArea(
+  workArea: Rectangle,
+  options: { width: number; height: number; minWidth: number; minHeight: number; centered?: boolean }
+): { x: number; y: number; width: number; height: number; minWidth: number; minHeight: number } {
+  const margin = 24;
+  const availableWidth = Math.max(260, workArea.width - margin * 2);
+  const availableHeight = Math.max(360, workArea.height - margin * 2);
+  const width = Math.min(options.width, availableWidth);
+  const height = Math.min(options.height, availableHeight);
+  const minWidth = Math.min(options.minWidth, width);
+  const minHeight = Math.min(options.minHeight, height);
+  const preferredX = options.centered ? workArea.x + Math.round((workArea.width - width) / 2) : workArea.x + workArea.width - width - margin;
+  const preferredY = options.centered ? workArea.y + Math.round((workArea.height - height) / 2) : workArea.y + workArea.height - height - margin;
+  const minX = workArea.x + margin;
+  const minY = workArea.y + margin;
+  const maxX = workArea.x + workArea.width - width - margin;
+  const maxY = workArea.y + workArea.height - height - margin;
+  return {
+    x: clamp(preferredX, minX, Math.max(minX, maxX)),
+    y: clamp(preferredY, minY, Math.max(minY, maxY)),
+    width,
+    height,
+    minWidth,
+    minHeight
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function attachNavigationGuards(window: BrowserWindow): void {

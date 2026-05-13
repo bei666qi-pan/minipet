@@ -1,6 +1,6 @@
 {
   "name": "minipet-openclaw-companion",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "爪爪伙伴 - Windows-first Chinese desktop companion.",
   "main": "dist-main/main.js",

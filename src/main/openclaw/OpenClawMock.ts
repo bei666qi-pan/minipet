@@ -9,14 +9,14 @@ export class OpenClawMock {
       scopes: [],
       sessionKey,
       demoMode: true,
-      lastError: "智能核心还没有准备好，当前使用体验模式。"
+      lastError: "高级功能还没有准备好，当前先用普通聊天。"
     };
   }
 
   async chat(params: ChatSendParams): Promise<ChatSendResult> {
     const now = new Date().toISOString();
     this.history.push({ role: "user", content: params.content, createdAt: now });
-    const text = `我已收到「${params.content.slice(0, 80)}」。做演示、看网页和整理文件需要先准备智能核心。`;
+    const text = `我已收到「${params.content.slice(0, 80)}」。做演示、看网页和整理文件需要先准备一下。`;
     this.history.push({ role: "assistant", content: text, createdAt: new Date().toISOString() });
     return {
       requestId: params.localRequestId,

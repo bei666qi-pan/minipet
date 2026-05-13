@@ -13,7 +13,7 @@ if (missing.length) {
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
 const version = process.env.MINIPET_RELEASE_VERSION || packageJson.version;
 const channel = process.env.MINIPET_RELEASE_CHANNEL || "stable";
-const releaseNotes = process.env.MINIPET_RELEASE_NOTES || `MiniPet ${version}`;
+const releaseNotes = process.env.MINIPET_RELEASE_NOTES || `爪爪 ${version}`;
 const releaseDir = path.resolve("release");
 const installerPath = await resolveInstallerPath(releaseDir, version);
 const installerName = path.basename(installerPath);

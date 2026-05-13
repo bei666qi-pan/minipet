@@ -51,7 +51,7 @@ export function shouldSpeak(policy: ProactiveSpeechPolicy): boolean {
 export function buildProactiveSpeechMessages(input: ProactiveContextInput): Array<{ role: "system" | "user"; content: string }> {
   const safeTurns = input.recentTalks
     .slice(-4)
-    .map((turn) => `${turn.role === "user" ? "用户" : "MiniPet"}：${turn.text.slice(0, 80)}`)
+    .map((turn) => `${turn.role === "user" ? "用户" : "爪爪"}：${turn.text.slice(0, 80)}`)
     .join("\n");
   const fileContext = canUseSelectedFiles(input.permissionMode) && input.selectedFiles.length
     ? `\n用户主动选择的文件：${input.selectedFiles.map((file) => file.split(/[\\/]/).pop()).join("、")}`
@@ -60,7 +60,7 @@ export function buildProactiveSpeechMessages(input: ProactiveContextInput): Arra
     {
       role: "system",
       content:
-        "你是一个低打扰桌面宠物 MiniPet。只写 1 到 2 句简短中文，语气温柔自然，有陪伴感，不要装作看到了屏幕或文件内容，不要催促用户。"
+        "你是一个低打扰桌面宠物爪爪。只写 1 到 2 句简短中文，语气温柔自然，有陪伴感，不要装作看到了屏幕或文件内容，不要催促用户。"
     },
     {
       role: "user",

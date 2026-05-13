@@ -1,6 +1,6 @@
 import type { ActionType } from "../permissions/PermissionModes";
 
-export type CompanionTaskType = "chat" | "file_task" | "ppt_task" | "paper_task" | "web_task" | "browser_task" | "overlay_assist";
+export type CompanionTaskType = "chat" | "file_task" | "ppt_task" | "paper_task" | "web_task" | "browser_task" | "open_url_task" | "overlay_assist";
 
 export interface RoutedTask {
   type: CompanionTaskType;
@@ -11,6 +11,7 @@ export interface RoutedTask {
   missingQuestion?: string;
   output: "none" | "pptx" | "paper";
   statusLabel: string;
+  urls?: string[];
 }
 
 export class CapabilityRouter {
@@ -21,6 +22,7 @@ export class CapabilityRouter {
     if (isPpt(lower)) return this.pptTask(text);
     if (isPaper(lower)) return this.paperTask(text);
     if (isFileTask(lower) || files.length > 0) return this.fileTask(text, files);
+    if (isOpenUrlTask(lower)) return this.openUrlTask(text);
     if (isBrowserTask(lower)) return this.browserTask(text);
     if (isOverlayTask(lower)) return this.overlayTask(text);
     if (isWebTask(lower)) return this.webTask(text);
@@ -137,6 +139,20 @@ export class CapabilityRouter {
     };
   }
 
+  private openUrlTask(text: string): RoutedTask {
+    const url = normalizeRequestedUrl(text);
+    return {
+      type: "open_url_task",
+      title: "打开网页",
+      prompt: `请打开网页：${url}`,
+      actionType: "open_url",
+      needsCore: false,
+      output: "none",
+      urls: [url],
+      statusLabel: "我在打开网页"
+    };
+  }
+
   private overlayTask(text: string): RoutedTask {
     return {
       type: "overlay_assist",
@@ -151,6 +167,19 @@ export class CapabilityRouter {
       statusLabel: "我在旁边帮你"
     };
   }
+}
+
+function isOpenUrlTask(text: string): boolean {
+  return /打开百度|百度一下|baidu|https?:\/\/|www\./i.test(text) || (/打开/.test(text) && /网页|网站|链接/.test(text));
+}
+
+function normalizeRequestedUrl(text: string): string {
+  if (/百度|baidu/i.test(text)) return "https://www.baidu.com/";
+  const explicit = /(https?:\/\/[^\s，。]+)/i.exec(text)?.[1];
+  if (explicit) return new URL(explicit).toString();
+  const www = /(www\.[^\s，。]+)/i.exec(text)?.[1];
+  if (www) return new URL(`https://${www}`).toString();
+  return "https://www.baidu.com/";
 }
 
 function isPpt(text: string): boolean {

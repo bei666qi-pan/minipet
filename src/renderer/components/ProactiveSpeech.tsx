@@ -91,10 +91,10 @@ function stateForEvent(event: ProactiveSpeechEvent): PetState {
   const states: Record<ProactiveSpeechEvent, PetState> = {
     welcome: "idle_welcome",
     idle: "idle_calm",
-    night: "sleepy_rest",
+    night: "idle_calm",
     task_success: "success_cheer",
     task_error: "apology_sad",
-    permission: "reminder_warning"
+    permission: "surprised_alert"
   };
   return states[event];
 }

@@ -52,4 +52,38 @@ describe("PermissionGate", () => {
     expect(allowed.requireConfirmation).toBe(true);
     expect(allowed.scopes).toContain("operator.admin");
   });
+
+  it("requests authorization instead of hard rejecting requestable safe actions", () => {
+    const decision = gate.evaluate({
+      mode: "safe",
+      actionType: "open_url",
+      method: "shell.openExternal",
+      urls: ["https://www.baidu.com/"],
+      prompt: "打开百度"
+    });
+    expect(decision.allowed).toBe(false);
+    expect(decision.requireConfirmation).toBe(true);
+    expect(decision.requestable).toBe(true);
+    expect(decision.authorizationChoices).toContain("turn");
+    expect(decision.authorizationChoices).toContain("switch_assisted");
+  });
+
+  it("still hard rejects unsafe urls and critical actions", () => {
+    const unsafeUrl = gate.evaluate({
+      mode: "safe",
+      actionType: "open_url",
+      urls: ["javascript:alert(1)"]
+    });
+    expect(unsafeUrl.allowed).toBe(false);
+    expect(unsafeUrl.requireConfirmation).toBe(false);
+    expect(unsafeUrl.requestable).toBeFalsy();
+
+    const shell = gate.evaluate({
+      mode: "safe",
+      actionType: "shell",
+      method: "system.run"
+    });
+    expect(shell.allowed).toBe(false);
+    expect(shell.requireConfirmation).toBe(false);
+  });
 });

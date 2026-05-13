@@ -1,21 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DesktopPet } from "./components/DesktopPet";
+import { FloatingBall } from "./components/FloatingBall";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { PetTalkPanel } from "./components/PetTalkPanel";
 import { ProactiveSpeech } from "./components/ProactiveSpeech";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { SpeechBubble } from "./components/SpeechBubble";
 import { useAppStore } from "./store/appStore";
 import { useSettingsStore } from "./store/settingsStore";
 import { useTaskStore } from "./store/taskStore";
+import { isInteractiveHitTarget } from "./windowHitTest";
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
   const { load, settings, cloudStatus } = useSettingsStore();
   const setCoreStatus = useSettingsStore((state) => state.setCoreStatus);
   const handleOpenClawEvent = useTaskStore((state) => state.handleOpenClawEvent);
-  const { addSelectedFiles, say, setTalkOpen } = useAppStore();
+  const { addSelectedFiles, say, setTalkOpen, talkOpen } = useAppStore();
+  const passThroughRef = useRef<boolean | undefined>(undefined);
   const isSettingsWindow = useMemo(() => hash.startsWith("#/settings"), [hash]);
+  const isFloatingBallWindow = useMemo(() => hash.startsWith("#/floating-ball"), [hash]);
 
   useEffect(() => {
     void load();
@@ -58,6 +61,21 @@ export default function App() {
     if (cloudStatus?.online === false && cloudStatus.message) say(cloudStatus.message, "surprised_alert");
   }, [cloudStatus?.message, cloudStatus?.online, say]);
 
+  useEffect(() => {
+    if (isSettingsWindow || isFloatingBallWindow) return;
+    return () => {
+      passThroughRef.current = undefined;
+      void window.minipet.invoke("window:set-pass-through", { enabled: false });
+    };
+  }, [isFloatingBallWindow, isSettingsWindow]);
+
+  function updatePassThrough(target: EventTarget | null) {
+    const shouldPassThrough = !isInteractiveHitTarget(target);
+    if (passThroughRef.current === shouldPassThrough) return;
+    passThroughRef.current = shouldPassThrough;
+    void window.minipet.invoke("window:set-pass-through", { enabled: shouldPassThrough });
+  }
+
   if (isSettingsWindow) {
     return (
       <div className={`settings-window-root theme-${settings?.theme ?? "light"}`}>
@@ -66,9 +84,16 @@ export default function App() {
     );
   }
 
+  if (isFloatingBallWindow) {
+    return <FloatingBall />;
+  }
+
   return (
     <div
-      className={`app-root theme-${settings?.theme ?? "light"}`}
+      className={`app-root theme-${settings?.theme ?? "light"} ${talkOpen ? "is-talk-open" : ""}`}
+      onMouseMove={(event) => updatePassThrough(event.target)}
+      onMouseDown={(event) => updatePassThrough(event.target)}
+      onMouseLeave={() => updatePassThrough(null)}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -78,11 +103,10 @@ export default function App() {
         if (files.length) {
           addSelectedFiles(files);
           setTalkOpen(true);
-          say(`我看到了 ${files.length} 个文件。你可以告诉我想怎么总结或整理它们。`, "listening");
+          say(`我看到了 ${files.length} 个文件。你可以直接告诉爪爪想怎么处理。`, "listening");
         }
       }}
     >
-      <SpeechBubble />
       <DesktopPet />
       <PetTalkPanel />
       <ProactiveSpeech />

@@ -146,7 +146,7 @@ async function parseChatResponse(response: Response): Promise<CloudChatResult> {
 function mapCloudError(error: string | undefined, status: number): string {
   if (error === "quota_exhausted" || error === "quota_exceeded") return "当前额度已用完，请联系管理员增加额度。";
   if (error === "user_disabled" || error === "device_disabled") return "账号暂不可用";
-  if (error === "model_backend_not_configured") return "MiniPet 云端模型暂未配置，请稍后再试。";
+  if (error === "model_backend_not_configured") return "爪爪暂时还不能聊天，请稍后再试。";
   if (status === 0 || status >= 500) return "当前网络异常，稍后再试";
-  return `MiniPet 云端请求失败：${status}`;
+  return `爪爪暂时没有连上，请稍后再试。`;
 }

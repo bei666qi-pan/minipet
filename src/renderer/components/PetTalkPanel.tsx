@@ -1,11 +1,11 @@
-import { Bell, FilePlus2, FolderOpen, Mic, SendHorizonal, Settings, Sparkles, X } from "lucide-react";
+import { Bell, Copy, FilePlus2, FolderOpen, Mic, SendHorizonal, Settings, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCompanionRunner } from "../hooks/useCompanionRunner";
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
+import { useTaskStore } from "../store/taskStore";
 import { CoreInstallModal } from "./CoreInstallModal";
 import { ModelAuthModal } from "./ModelAuthModal";
-import { PermissionModal } from "./PermissionModal";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -22,6 +22,7 @@ export function PetTalkPanel() {
     talkOpen,
     talkLastInteractionAt,
     selectedFiles,
+    bubbleText,
     addSelectedFiles,
     clearSelectedFiles,
     say,
@@ -29,9 +30,12 @@ export function PetTalkPanel() {
     touchTalkPanel
   } = useAppStore();
   const { settings } = useSettingsStore();
+  const activeTaskId = useTaskStore((state) => state.activeTaskId);
+  const activeTask = useTaskStore((state) => state.tasks.find((task) => task.localRequestId === activeTaskId));
   const runner = useCompanionRunner();
-  const hasBlockingModal = Boolean(runner.coreAuthorizationText || runner.modelAuthorizationText || runner.pendingPermission);
+  const hasBlockingPrompt = Boolean(runner.coreAuthorizationText || runner.modelAuthorizationText || runner.pendingPermission);
   const autoHideMs = Math.max(8, settings?.talkAutoHideSeconds ?? 30) * 1000;
+  const outputText = activeTask?.result || activeTask?.error || bubbleText;
 
   useEffect(() => {
     if (!talkOpen) return;
@@ -40,12 +44,12 @@ export function PetTalkPanel() {
   }, [talkOpen]);
 
   useEffect(() => {
-    if (!talkOpen || hasBlockingModal || input.trim() || selectedFiles.length) return;
+    if (!talkOpen || hasBlockingPrompt || input.trim() || selectedFiles.length) return;
     const timer = window.setInterval(() => {
       if (Date.now() - talkLastInteractionAt >= autoHideMs) setTalkOpen(false);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [autoHideMs, hasBlockingModal, input, selectedFiles.length, setTalkOpen, talkLastInteractionAt, talkOpen]);
+  }, [autoHideMs, hasBlockingPrompt, input, selectedFiles.length, setTalkOpen, talkLastInteractionAt, talkOpen]);
 
   async function send() {
     const text = input.trim();
@@ -60,7 +64,7 @@ export function PetTalkPanel() {
     const files = await window.minipet.invoke<string[]>("dialog:select-files");
     if (files.length) {
       addSelectedFiles(files);
-      say(`已加入 ${files.length} 个文件。你可以直接告诉我想怎么总结或整理。`, "listening");
+      say(`已加入 ${files.length} 个文件。你可以直接告诉我想怎么处理。`, "listening");
       setInput("请帮我总结这些文件");
     }
   }
@@ -96,14 +100,46 @@ export function PetTalkPanel() {
         <section className="pet-talk-panel no-drag" onPointerDown={touchTalkPanel} onFocus={touchTalkPanel}>
           <div className="talk-status">
             <span className="core-dot ready" />
-            <span>{settings?.aiMode === "custom" ? "自带模型模式" : "托管模式已开启"}</span>
+            <span>{settings?.aiMode === "custom" ? "自带聊天已开启" : "爪爪在线"}</span>
             <button title="收起" onClick={() => setTalkOpen(false)}>
               <X size={15} />
             </button>
           </div>
+          <div className={`talk-output ${activeTask?.status === "error" ? "is-error" : ""}`}>
+            <div className="talk-output-header">
+              <strong>{activeTask ? activeTask.title : "爪爪"}</strong>
+              <span>{activeTask ? statusLabel(activeTask.status) : "随时可以开始"}</span>
+              <button title="复制回复" onClick={() => void navigator.clipboard.writeText(outputText)}>
+                <Copy size={14} />
+              </button>
+            </div>
+            <p>{outputText}</p>
+            {runner.pendingPermission ? (
+              <div className="permission-inline" role="group" aria-label="爪爪需要你确认">
+                <span>允许后我会直接继续这件事。</span>
+                <div>
+                  <button disabled={runner.permissionSubmitting} onClick={runner.clearPermission}>
+                    先不要
+                  </button>
+                  <button disabled={runner.permissionSubmitting} onClick={() => void runner.confirmPermission("turn")}>
+                    只允许这一次
+                  </button>
+                  <button className="primary-button" disabled={runner.permissionSubmitting} onClick={() => void runner.confirmPermission("switch_assisted")}>
+                    以后同类也可以
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {activeTask ? (
+              <div className="talk-output-meta">
+                <span>{activeTask.timeline.at(-1)?.label}</span>
+                {activeTask.outputs?.length ? <span>已生成 {activeTask.outputs.length} 个文件</span> : null}
+              </div>
+            ) : null}
+          </div>
           <div className="quick-intents">
             <button onClick={() => inputRef.current?.focus()}>
-              <Sparkles size={15} /> 问我一下
+              <Sparkles size={15} /> 问爪爪
             </button>
             <button onClick={() => void selectFiles()}>
               <FilePlus2 size={15} /> 总结文件
@@ -114,7 +150,6 @@ export function PetTalkPanel() {
             <button onClick={openSettings}>
               <Settings size={15} /> 设置
             </button>
-            <button onClick={openSettings}>高级</button>
           </div>
           <div className="talk-input-row">
             <button title="选择文件" onClick={() => void selectFiles()}>
@@ -134,7 +169,7 @@ export function PetTalkPanel() {
                   void send();
                 }
               }}
-              placeholder="直接问我，例如：帮我整理今天的任务"
+              placeholder="直接问爪爪，例如：帮我整理今天的任务"
             />
             <button title="语音输入" onClick={startVoice}>
               <Mic size={18} />
@@ -160,13 +195,17 @@ export function PetTalkPanel() {
         onCancel={runner.clearModelAuthorization}
         onOpenSettings={() => void runner.openSettingsForModelAuthorization()}
       />
-      <PermissionModal
-        decision={runner.pendingPermission}
-        actionText="让 MiniPet 继续完成这件事"
-        consequences="可能会读取你主动选择的文件或任务内容；不会自动付款、删除、发送消息或提交敏感信息。"
-        onCancel={runner.clearPermission}
-        onConfirm={() => void runner.confirmPermission()}
-      />
     </>
   );
+}
+
+function statusLabel(status: string): string {
+  return {
+    queued: "准备中",
+    running: "进行中",
+    waiting_confirmation: "等你确认",
+    success: "已完成",
+    error: "没完成",
+    stopped: "已停止"
+  }[status] ?? status;
 }

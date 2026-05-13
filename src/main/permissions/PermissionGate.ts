@@ -34,6 +34,8 @@ const NEVER_WITHOUT_CONFIRM = new Set([
   "app_overlay_control_request"
 ]);
 
+const REQUESTABLE_WHEN_MODE_BLOCKED = new Set(["search", "open_url", "browser_read", "browser_fill", "app_overlay_assist"]);
+
 const METHOD_RISK: Array<{ pattern: RegExp; risk: RiskLevel }> = [
   { pattern: /system\.run|shell|exec/i, risk: "critical" },
   { pattern: /skill.*install|install.*skill/i, risk: "critical" },
@@ -74,6 +76,18 @@ export class PermissionGate {
     }
 
     if (!this.actionAllowedInMode(context.mode, context.actionType)) {
+      if (REQUESTABLE_WHEN_MODE_BLOCKED.has(context.actionType)) {
+        return this.logAndReturn(context, {
+          allowed: false,
+          requireConfirmation: true,
+          requestable: true,
+          reason: `${this.modeName(context.mode)}需要你授权后才能执行这个操作。`,
+          risk,
+          scopes,
+          authorizationChoices: ["turn", "switch_assisted"],
+          suggestedMode: "assisted"
+        });
+      }
       return this.logAndReturn(context, {
         allowed: false,
         requireConfirmation: false,

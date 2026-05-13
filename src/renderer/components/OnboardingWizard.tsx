@@ -4,13 +4,13 @@ import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
 
 const INTRO =
-  "你好，我是 MiniPet，你的桌面学习/办公搭子。你可以直接问我问题，也可以让我帮你总结资料、提醒任务。默认安全模式下，我不会自动删除文件或执行高危操作。";
+  "你好，我是爪爪，你的桌面学习/办公搭子。你可以直接问我问题，也可以让我帮你总结资料、提醒任务。需要离开聊天框做事时，我会先问你。";
 
 export function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const { settings, update } = useSettingsStore();
   const { say, setTalkOpen } = useAppStore();
-  const steps = ["点击说话", "直接使用", "安全确认"];
+  const steps = ["点击说话", "直接使用", "做事先问"];
   if (settings?.onboarded) return null;
 
   async function finish() {
@@ -23,28 +23,28 @@ export function OnboardingWizard() {
     <div className="modal-backdrop onboarding">
       <section className="wizard-card">
         <header>
-          <strong>MiniPet</strong>
+          <strong>爪爪</strong>
           <span>{steps[step]}</span>
         </header>
         {step === 0 ? (
           <div className="wizard-page">
             <MousePointerClick size={42} />
-            <h1>点击桌宠，就能和我说话</h1>
+            <h1>点一下桌宠，就能和我说话</h1>
             <p>{INTRO}</p>
           </div>
         ) : null}
         {step === 1 ? (
           <div className="wizard-page">
             <Sparkles size={38} />
-            <h1>默认不用配置</h1>
-            <p>MiniPet 会使用托管模式连接官方云端。你不需要填写技术配置，也不需要理解底层技术。</p>
+            <h1>默认可以直接用</h1>
+            <p>普通聊天、整理资料和提醒任务都从同一个聊天框开始，不需要先理解复杂设置。</p>
           </div>
         ) : null}
         {step === 2 ? (
           <div className="wizard-page">
             <ShieldCheck size={38} />
-            <h1>高风险动作会先问你</h1>
-            <p>总结文件、提醒任务、普通问答可以直接开始；删除、付款、提交表单、发送消息等高风险动作不会自动执行。</p>
+            <h1>离开聊天框做事会先问你</h1>
+            <p>打开网页、处理文件或影响电脑状态前，爪爪会用简单的话问你是否继续。</p>
           </div>
         ) : null}
         <footer>

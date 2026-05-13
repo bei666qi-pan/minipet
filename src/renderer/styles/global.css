@@ -75,9 +75,7 @@ textarea {
   position: relative;
   user-select: none;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(216, 243, 255, 0.36), rgba(255, 250, 246, 0.18) 46%, rgba(255, 221, 234, 0.18)),
-    transparent;
+  background: transparent;
 }
 
 .settings-window-root {
@@ -89,17 +87,50 @@ textarea {
     var(--bg);
 }
 
+.floating-ball-root {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  user-select: none;
+  background: transparent;
+}
+
+.floating-ball-button {
+  width: 70px;
+  height: 70px;
+  padding: 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 20px rgba(35, 27, 22, 0.2);
+  cursor: grab;
+  touch-action: none;
+}
+
+.floating-ball-button:hover {
+  transform: translateY(-1px) scale(1.02);
+}
+
+.floating-ball-button img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .pet-shell {
   position: absolute;
   right: 22px;
-  bottom: 154px;
+  bottom: 105px;
   width: 206px;
-  height: 260px;
+  height: 309px;
   display: grid;
   place-items: center;
   z-index: 20;
   cursor: grab;
-  filter: drop-shadow(0 18px 28px rgba(68, 48, 82, 0.2));
   animation: pet-idle 4.6s ease-in-out infinite;
   touch-action: none;
 }
@@ -109,35 +140,15 @@ textarea {
   animation: none;
 }
 
-.pet-aura {
-  position: absolute;
-  inset: 28px 20px 18px;
-  border-radius: 42% 45% 38% 40%;
-  background: rgba(255, 240, 187, 0.42);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-}
-
-.pet-aura-reminder_warning,
-.pet-aura-surprised_alert,
-.pet-aura-apology_sad {
-  background: rgba(255, 222, 179, 0.48);
-}
-
-.pet-aura-success_cheer {
-  background: rgba(223, 247, 236, 0.64);
-}
-
-.pet-aura-listening,
-.pet-aura-thinking,
-.pet-aura-laptop_working,
-.pet-aura-working_guide {
-  background: rgba(216, 243, 255, 0.58);
+.app-root.is-talk-open .pet-shell {
+  z-index: 34;
 }
 
 .pet-image {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  display: block;
   pointer-events: none;
   position: relative;
   z-index: 1;
@@ -190,27 +201,6 @@ textarea {
   background: #453446;
 }
 
-.speech-bubble {
-  position: absolute;
-  right: 142px;
-  bottom: 416px;
-  width: min(318px, calc(100% - 34px));
-  max-height: 142px;
-  overflow: hidden;
-  z-index: 24;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 18px 18px 8px 18px;
-  padding: 12px;
-  box-shadow: var(--soft-shadow);
-}
-
-.speech-bubble.expanded {
-  max-height: 260px;
-  overflow: auto;
-}
-
-.bubble-header,
 .section-title,
 .panel-header,
 .task-card header,
@@ -223,7 +213,6 @@ textarea {
   gap: 10px;
 }
 
-.bubble-header div,
 .section-title,
 .room-title {
   display: flex;
@@ -231,38 +220,16 @@ textarea {
   gap: 8px;
 }
 
-.bubble-header button {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border-radius: 999px;
-}
-
-.speech-bubble p {
-  margin: 8px 0 0;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.bubble-progress,
 .hint {
   color: var(--muted);
   font-size: 12px;
 }
 
-.bubble-progress {
-  margin-top: 8px;
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
 .pet-talk-panel {
   position: absolute;
-  left: 16px;
   right: 16px;
   bottom: 14px;
+  width: min(430px, calc(100% - 32px));
   z-index: 30;
   display: grid;
   gap: 8px;
@@ -270,7 +237,7 @@ textarea {
   border-radius: 20px;
   background: var(--panel);
   border: 1px solid var(--line);
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 14px rgba(83, 57, 102, 0.1);
 }
 
 .talk-status {
@@ -286,6 +253,120 @@ textarea {
 .selected-files button {
   width: 28px;
   height: 28px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.talk-output {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  max-height: 150px;
+  overflow: auto;
+}
+
+.talk-output.is-error {
+  border-color: rgba(199, 53, 75, 0.34);
+  background: rgba(255, 244, 246, 0.88);
+}
+
+.talk-output-header,
+.talk-output-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.talk-output-header {
+  justify-content: space-between;
+}
+
+.talk-output-header strong {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.talk-output-header span,
+.talk-output-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.talk-output-header button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.talk-output p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  font-size: 13px;
+  user-select: text;
+}
+
+.talk-output-meta {
+  flex-wrap: wrap;
+}
+
+.permission-inline {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(233, 111, 154, 0.24);
+}
+
+.permission-inline span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.permission-inline div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.permission-inline button {
+  min-height: 32px;
+  padding: 7px 10px;
+  border-radius: 999px;
+}
+
+.memory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.memory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.memory-row strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.memory-row button {
+  width: 32px;
+  height: 32px;
   padding: 0;
   border-radius: 999px;
 }
@@ -649,6 +730,15 @@ textarea {
   color: var(--muted);
 }
 
+.permission-simple {
+  display: grid;
+  gap: 8px;
+}
+
+.permission-simple p:first-child {
+  font-weight: 700;
+}
+
 .risk-critical,
 .risk-high {
   border-color: rgba(199, 53, 75, 0.42);
@@ -667,15 +757,9 @@ textarea {
 @media (max-width: 560px) {
   .pet-shell {
     right: 14px;
-    bottom: 150px;
+    bottom: 116px;
     width: 174px;
-    height: 226px;
-  }
-
-  .speech-bubble {
-    right: 18px;
-    bottom: 378px;
-    width: calc(100% - 36px);
+    height: 261px;
   }
 
   .talk-input-row {

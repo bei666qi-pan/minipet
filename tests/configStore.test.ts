@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { REQUESTED_PET_ASSET_FILES } from "../src/main/assetManager";
+import { OBSOLETE_PET_ASSET_FILES, REQUESTED_PET_ASSET_FILES } from "../src/main/assetManager";
 import { ConfigStore, defaultBundledAssetDirectory, MANAGED_API_ORIGIN } from "../src/main/configStore";
 
 describe("ConfigStore first run identity", () => {
@@ -13,6 +13,11 @@ describe("ConfigStore first run identity", () => {
     expect(settings.aiMode).toBe("cloud");
     expect(settings.cloudApiOrigin).toBe(MANAGED_API_ORIGIN);
     expect(settings.cloudDeviceId).toMatch(/^mp_[a-f0-9]{32}$/);
+    expect(settings.memoryEnabled).toBe(true);
+    expect(settings.memoryAutoExtractEnabled).toBe(true);
+    expect(settings.memoryUseModelCompression).toBe(true);
+    expect(settings.lastDesktopSurface).toBe("floatingBall");
+    expect(settings.floatingBallPosition).toBeUndefined();
 
     const reloaded = await new ConfigStore(dir).load();
     expect(reloaded.cloudDeviceId).toBe(settings.cloudDeviceId);
@@ -43,6 +48,35 @@ describe("ConfigStore first run identity", () => {
     for (const fileName of Object.values(REQUESTED_PET_ASSET_FILES)) {
       await expect(fs.stat(path.join(settings.assetDirectory, fileName))).resolves.toMatchObject({ size: expect.any(Number) });
     }
+  });
+
+  it("migrates complete but obsolete 13-state asset directories to the current 10-state set", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "minipet-config-"));
+    const staleAssetDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "minipet-stale-assets-"));
+    for (const fileName of Object.values(REQUESTED_PET_ASSET_FILES)) {
+      await fs.writeFile(path.join(staleAssetDirectory, fileName), Buffer.from([1, 2, 3]));
+    }
+    for (const fileName of OBSOLETE_PET_ASSET_FILES) {
+      await fs.writeFile(path.join(staleAssetDirectory, fileName), Buffer.from([1, 2, 3]));
+    }
+    await fs.writeFile(
+      path.join(dir, "settings.json"),
+      JSON.stringify(
+        {
+          ...minimalPersistedSettings(),
+          assetDirectory: staleAssetDirectory,
+          assetMapping: { idle_welcome: "stale-id" },
+          cloudDeviceId: "mp_1234567890abcdef1234567890abcdef"
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const settings = await new ConfigStore(dir).load();
+    expect(settings.assetDirectory).toBe(defaultBundledAssetDirectory());
+    expect(settings.assetMapping).toEqual({});
   });
 
   it("keeps a custom complete sticker directory", async () => {

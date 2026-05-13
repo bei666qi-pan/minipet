@@ -1,6 +1,11 @@
 import { create } from "zustand";
 
 export type PermissionMode = "demo" | "safe" | "assisted" | "full";
+export type DesktopSurface = "floatingBall" | "mainWindow";
+export interface WindowPoint {
+  x: number;
+  y: number;
+}
 export type PetState =
   | "idle_welcome"
   | "listening"
@@ -8,11 +13,8 @@ export type PetState =
   | "working_guide"
   | "success_cheer"
   | "idle_calm"
-  | "sleepy_rest"
-  | "shy_smile"
   | "surprised_alert"
   | "apology_sad"
-  | "reminder_warning"
   | "laptop_working"
   | "dragging";
 
@@ -45,6 +47,11 @@ export interface MiniPetSettings {
   quietHoursStart: string;
   quietHoursEnd: string;
   talkAutoHideSeconds: number;
+  memoryEnabled: boolean;
+  memoryAutoExtractEnabled: boolean;
+  memoryUseModelCompression: boolean;
+  lastDesktopSurface: DesktopSurface;
+  floatingBallPosition?: WindowPoint;
 }
 
 export interface PetAsset {

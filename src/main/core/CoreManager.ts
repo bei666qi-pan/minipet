@@ -37,7 +37,7 @@ export class CoreManager extends EventEmitter {
     return {
       connected: this.openClaw.status().connected,
       state: progress.state,
-      label: this.openClaw.status().connected ? "智能核心已准备好" : progress.label,
+      label: this.openClaw.status().connected ? "高级能力已准备好" : progress.label,
       needsAuthorization: !this.openClaw.status().connected && progress.state !== "ready",
       runtimeDir: settings.runtimeDir || defaultRuntimeDir(),
       lastError: this.lastError
@@ -58,7 +58,7 @@ export class CoreManager extends EventEmitter {
       return {
         ...this.status(),
         state: "needs_authorization",
-        label: "需要你同意后，我才能准备智能核心",
+        label: "需要你同意后，我才能准备高级能力",
         needsAuthorization: true
       };
     }
@@ -87,7 +87,7 @@ export class CoreManager extends EventEmitter {
 
   async startGateway(command: string, runtimeDir: string): Promise<void> {
     if (this.gatewayProcess && !this.gatewayProcess.killed) return;
-    this.emit("progress", { ...this.status(), state: "starting", label: "我在启动智能核心" });
+    this.emit("progress", { ...this.status(), state: "starting", label: "我在启动高级能力" });
     const child = spawn(command, ["gateway", "run", "--allow-unconfigured", "--port", "18789"], {
       cwd: runtimeDir,
       windowsHide: true,
@@ -138,9 +138,9 @@ export class CoreManager extends EventEmitter {
 }
 
 function simplifyError(message: string): string {
-  if (/ENOTFOUND|ECONN|network|timeout|timed out/i.test(message)) return "网络连接不稳定，智能核心下载失败。请检查网络后重试。";
+  if (/ENOTFOUND|ECONN|network|timeout|timed out/i.test(message)) return "网络连接不稳定，高级能力准备失败。请检查网络后重试。";
   if (/permission|access denied|EPERM/i.test(message)) return "当前目录没有写入权限，请换一个安装位置后重试。";
-  return message.slice(0, 180) || "智能核心准备失败，请重试。";
+  return message.slice(0, 180) || "高级能力准备失败，请重试。";
 }
 
 function delay(ms: number): Promise<void> {

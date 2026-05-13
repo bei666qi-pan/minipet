@@ -1,49 +1,44 @@
-import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 export interface PermissionDecision {
   allowed: boolean;
   requireConfirmation: boolean;
+  requestable?: boolean;
   reason: string;
   risk: "low" | "medium" | "high" | "critical";
   scopes: string[];
+  authorizationChoices?: Array<"turn" | "switch_assisted">;
+  suggestedMode?: "demo" | "safe" | "assisted" | "full";
 }
 
 interface Props {
   decision?: PermissionDecision;
   actionText: string;
-  consequences: string;
   onCancel: () => void;
-  onConfirm: (scope: "once" | "session") => void;
+  onConfirm: (scope: "turn" | "switch_assisted") => void;
 }
 
-export function PermissionModal({ decision, actionText, consequences, onCancel, onConfirm }: Props) {
+export function PermissionModal({ decision, actionText, onCancel, onConfirm }: Props) {
   if (!decision) return null;
-  const highRisk = decision.risk === "critical" || decision.risk === "high";
+  const canAuthorize = decision.allowed || Boolean(decision.requestable);
   return (
     <div className="modal-backdrop">
-      <section className={`modal-card permission-card risk-${decision.risk}`}>
+      <section className="modal-card permission-card">
         <div className="modal-title">
-          {highRisk ? <AlertTriangle /> : <ShieldCheck />}
-          <span>{decision.allowed ? "需要确认" : "当前模式不允许"}</span>
+          <ShieldCheck />
+          <span>{canAuthorize ? "需要你点头" : "这件事不能直接做"}</span>
         </div>
-        <p>{decision.reason}</p>
-        <dl className="permission-details">
-          <dt>即将执行</dt>
-          <dd>{actionText}</dd>
-          <dt>可能访问</dt>
-          <dd>当前任务输入、你主动选择的文件、任务所需的网页或应用上下文。</dd>
-          <dt>可能后果</dt>
-          <dd>{consequences}</dd>
-          <dt>是否可撤销</dt>
-          <dd>{decision.risk === "critical" ? "可能不可撤销，请确认来源可信。" : "通常可以取消或重新生成。"}</dd>
-        </dl>
+        <div className="permission-simple">
+          <p>{friendlyReason(decision, canAuthorize)}</p>
+          <p>{actionText}</p>
+        </div>
         <div className="modal-actions">
-          <button onClick={onCancel}>取消</button>
-          {decision.allowed ? (
+          <button onClick={onCancel}>先不要</button>
+          {canAuthorize ? (
             <>
-              <button onClick={() => onConfirm("once")}>仅本次允许</button>
-              <button className="primary-button" onClick={() => onConfirm("session")}>
-                本次会话允许
+              <button onClick={() => onConfirm("turn")}>只允许这一次</button>
+              <button className="primary-button" onClick={() => onConfirm("switch_assisted")}>
+                以后同类也可以
               </button>
             </>
           ) : null}
@@ -51,4 +46,10 @@ export function PermissionModal({ decision, actionText, consequences, onCancel, 
       </section>
     </div>
   );
+}
+
+function friendlyReason(decision: PermissionDecision, canAuthorize: boolean): string {
+  if (!canAuthorize) return "这件事可能不安全，爪爪不能直接做。";
+  if (decision.risk === "high" || decision.risk === "critical") return "这一步影响比较大，爪爪需要先问你。";
+  return "爪爪要离开聊天框去帮你做点事，先确认一下。";
 }

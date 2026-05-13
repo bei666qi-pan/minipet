@@ -59,7 +59,7 @@ export function DesktopPet() {
       setPetState(session.previousState);
       return;
     }
-    setPetState("shy_smile");
+    setPetState("idle_welcome");
     setTalkOpen(true);
     touchTalkPanel();
   }
@@ -76,13 +76,12 @@ export function DesktopPet() {
         event.preventDefault();
         void window.minipet.invoke("window:open-pet-menu");
       }}
-      title="点一下 MiniPet，就能和它说话。按住拖动可以移动位置。"
+      title="点一下爪爪，就能和它说话。按住拖动可以移动位置。"
     >
-      <div className={`pet-aura pet-aura-${petState}`} />
       {assetUrl ? (
-        <img className="pet-image" src={assetUrl} alt="MiniPet 桌宠" draggable={false} />
+        <img className="pet-image" src={assetUrl} alt="爪爪桌宠" draggable={false} />
       ) : (
-        <div className="pet-placeholder" aria-label="MiniPet 桌宠占位">
+        <div className="pet-placeholder" aria-label="爪爪桌宠占位">
           <div className="pet-ear left" />
           <div className="pet-ear right" />
           <div className="pet-face">

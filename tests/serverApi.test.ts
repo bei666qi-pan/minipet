@@ -105,6 +105,53 @@ describe("MiniPet backend API", () => {
     expect(chat.quotaRemaining).toBe(2_000_000 - chat.usage.totalTokens);
   });
 
+  it("parses compatible NewAPI response text shapes", async () => {
+    const arrayResponse = await chatThroughPayload(
+      {
+        model: "mock-model",
+        choices: [
+          {
+            message: {
+              content: [
+                { type: "text", text: "array " },
+                { type: "text", text: "reply" }
+              ]
+            }
+          }
+        ],
+        usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 }
+      },
+      "mp_arraycontent00000000000000000000"
+    );
+    expect(arrayResponse.status).toBe(200);
+    await expect(arrayResponse.json()).resolves.toMatchObject({ text: "array reply", usage: { totalTokens: 5 } });
+
+    const choiceTextResponse = await chatThroughPayload(
+      {
+        model: "mock-model",
+        choices: [{ text: "choice text reply" }],
+        usage: { prompt_tokens: 2, completion_tokens: 4, total_tokens: 6 }
+      },
+      "mp_choicetext000000000000000000000"
+    );
+    expect(choiceTextResponse.status).toBe(200);
+    await expect(choiceTextResponse.json()).resolves.toMatchObject({ text: "choice text reply", usage: { totalTokens: 6 } });
+  });
+
+  it("treats empty NewAPI replies as upstream errors", async () => {
+    const chatResponse = await chatThroughPayload(
+      {
+        model: "mock-model",
+        choices: [{ message: { content: "   " } }],
+        usage: { prompt_tokens: 2, completion_tokens: 0, total_tokens: 2 }
+      },
+      "mp_emptyreply0000000000000000000000"
+    );
+
+    expect(chatResponse.status).toBe(502);
+    await expect(chatResponse.json()).resolves.toMatchObject({ error: "model_backend_error" });
+  });
+
   it("lets admins adjust quota, create releases, inspect usage, and disable chat", async () => {
     const upstream = await startUpstream({
       model: "mock-model",
@@ -215,13 +262,16 @@ describe("MiniPet backend API", () => {
     });
     const html = await fetch(`${base}/admin`);
     expect(html.status).toBe(200);
-    await expect(html.text()).resolves.toContain("MiniPet Admin");
+    await expect(html.text()).resolves.toContain("爪爪运营后台");
 
     const js = await fetch(`${base}/admin/app.js`);
     expect(js.status).toBe(200);
     const jsText = await js.text();
     expect(jsText).toContain("/admin/users");
-    expect(jsText).toContain("账号暂不可用");
+    expect(jsText).toContain("用户与额度");
+    expect(jsText).toContain("安全记录");
+    expect(jsText).toContain("该用户已暂停使用");
+    expect(jsText).toContain("排障信息");
 
     const css = await fetch(`${base}/admin/styles.css`);
     expect(css.status).toBe(200);
@@ -236,11 +286,34 @@ describe("MiniPet backend API", () => {
     const html = await fetch(`${base}/`);
     expect(html.status).toBe(200);
     const htmlText = await html.text();
-    expect(htmlText).toContain("MiniPet");
-    expect(htmlText).toContain("Windows 10 / Windows 11");
-    expect(htmlText).toContain("默认不需要配置 API Key");
+    expect(htmlText).toContain("爪爪 MiniPet");
+    expect(htmlText).toContain("Windows 桌面伙伴");
+    expect(htmlText).toContain("下载或使用爪爪前");
+    expect(htmlText).not.toContain("API Key");
+    expect(htmlText).not.toContain("device_id");
+    expect(htmlText).not.toContain("token");
     expect(htmlText).toContain("隐私政策");
     expect(htmlText).toContain("用户协议");
+    expect(htmlText).toContain("bei666qi@gmail.com");
+    expect(htmlText).toContain("MiniPet 项目组");
+
+    const privacy = await fetch(`${base}/privacy`);
+    expect(privacy.status).toBe(200);
+    const privacyText = await privacy.text();
+    expect(privacyText).toContain("爪爪隐私政策");
+    expect(privacyText).toContain("查询、复制、更正、补充、删除");
+    expect(privacyText).toContain("bei666qi@gmail.com");
+
+    const terms = await fetch(`${base}/terms`);
+    expect(terms.status).toBe(200);
+    const termsText = await terms.text();
+    expect(termsText).toContain("爪爪用户协议");
+    expect(termsText).toContain("不得利用爪爪从事违法违规");
+
+    const changelog = await fetch(`${base}/changelog`);
+    expect(changelog.status).toBe(200);
+    const changelogText = await changelog.text();
+    expect(changelogText).toContain("爪爪更新说明");
 
     const js = await fetch(`${base}/website/app.js`);
     expect(js.status).toBe(200);
@@ -248,7 +321,7 @@ describe("MiniPet backend API", () => {
     expect(jsText).toContain("/v1/releases/latest");
     expect(jsText).toContain("https://download.minipet.versecraft.cn/latest/latest.json");
     expect(jsText).toContain("download.minipet.versecraft.cn");
-    expect(jsText).toContain("sha256");
+    expect(jsText).toContain("checksum");
     expect(jsText).toContain("formatBytes");
 
     const css = await fetch(`${base}/website/styles.css`);
@@ -287,7 +360,8 @@ async function startBackend(overrides: Partial<BackendConfig> = {}): Promise<{ b
 
 async function startUpstream(input: {
   model: string;
-  text: string;
+  text?: string;
+  payload?: unknown;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }): Promise<{ base: string }> {
   const upstream = http.createServer((request, response) => {
@@ -297,7 +371,7 @@ async function startUpstream(input: {
       return;
     }
     response.writeHead(200, { "Content-Type": "application/json" });
-    response.end(JSON.stringify({ model: input.model, choices: [{ message: { content: input.text } }], usage: input.usage }));
+    response.end(JSON.stringify(input.payload ?? { model: input.model, choices: [{ message: { content: input.text ?? "" } }], usage: input.usage }));
   });
   servers.push(upstream);
   await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", resolve));
@@ -310,6 +384,17 @@ async function bootstrapDevice(base: string, deviceId: string): Promise<{ token:
   const response = await postJson(`${base}/v1/bootstrap`, { device_id: deviceId });
   expect(response.status).toBe(200);
   return (await response.json()) as { token: string };
+}
+
+async function chatThroughPayload(payload: unknown, deviceId: string): Promise<Response> {
+  const upstream = await startUpstream({ model: "mock-model", payload });
+  const { base } = await startBackend({
+    newApiBaseUrl: upstream.base,
+    newApiKey: "fixture-value",
+    newApiDefaultModel: "mock-model"
+  });
+  const bootstrap = await bootstrapDevice(base, deviceId);
+  return postJson(`${base}/v1/chat`, { messages: [{ role: "user", content: "hello" }] }, { Authorization: `Bearer ${bootstrap.token}` });
 }
 
 function postJson(url: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {

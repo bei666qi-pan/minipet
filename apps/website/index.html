@@ -3,110 +3,215 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MiniPet - 桌面 AI 学习/办公搭子</title>
-    <meta name="description" content="MiniPet 是新手友好的桌面 AI 学习/办公搭子，默认无需配置 API Key。" />
+    <title>爪爪 MiniPet - 温和的桌面 AI 伙伴</title>
+    <meta name="description" content="爪爪是适合日常学习和办公的桌面 AI 伙伴，下载安装后即可开始使用。" />
+    <link rel="icon" type="image/png" href="/website/assets/minipet-logo.png" />
     <link rel="stylesheet" href="/website/styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <nav>
-        <strong>MiniPet</strong>
-        <div>
-          <a href="#changelog">更新日志</a>
-          <a href="#privacy">隐私政策</a>
-          <a href="#terms">用户协议</a>
-        </div>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="爪爪 MiniPet 首页">
+        <img src="/website/assets/minipet-logo.png" alt="" />
+        <span>爪爪 MiniPet</span>
+      </a>
+      <nav aria-label="主要导航">
+        <a href="/">首页</a>
+        <a href="/changelog">更新说明</a>
+        <a href="/privacy">隐私政策</a>
+        <a href="/terms">用户协议</a>
       </nav>
-      <section class="hero-body">
-        <div>
-          <p class="eyebrow">Windows 桌宠</p>
-          <h1>MiniPet</h1>
-          <p class="tagline">新手友好的桌面 AI 学习/办公搭子</p>
-          <div class="actions">
-            <a id="download-button" class="button primary" href="https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe">下载 Windows 版</a>
-            <a class="button" href="#changelog">查看更新日志</a>
-          </div>
-          <div class="release-card" aria-live="polite">
-            <div><span>当前版本号</span><strong id="version">正在获取...</strong></div>
-            <div><span>文件大小</span><strong id="size">-</strong></div>
-            <div><span>SHA256</span><strong id="sha256" class="mono">-</strong></div>
-          </div>
-        </div>
-      </section>
     </header>
 
     <main>
-      <section class="section grid-2">
-        <article>
-          <h2>系统要求</h2>
-          <p>Windows 10 / Windows 11</p>
+      <section class="page page-home" data-page="home">
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Windows 桌面伙伴</p>
+            <h1>打开电脑，爪爪在桌面陪你整理思路。</h1>
+            <p class="tagline">适合学习、办公和日常记录。下载安装后即可开始聊天，遇到文件、发送、删除等重要操作时，会先请你确认。</p>
+            <div class="actions">
+              <a id="download-button" class="button primary" href="https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe">下载 Windows 版</a>
+              <a class="button" href="/changelog">查看更新说明</a>
+            </div>
+            <p class="download-note">
+              下载或使用爪爪前，请阅读
+              <a href="/terms">用户协议</a>
+              和
+              <a href="/privacy">隐私政策</a>
+              。如需帮助，请联系
+              <a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a>
+              。
+            </p>
+          </div>
+          <div class="pet-showcase" aria-hidden="true">
+            <img src="/website/assets/minipet-logo.png" alt="" />
+          </div>
+        </section>
+
+        <section class="section highlights" aria-label="爪爪能做什么">
+          <article>
+            <span>陪伴入口</span>
+            <h2>随手问、随手记</h2>
+            <p>把问题、想法和待整理的内容直接告诉它，爪爪会用简洁的方式回应。</p>
+          </article>
+          <article>
+            <span>学习办公</span>
+            <h2>帮你梳理资料</h2>
+            <p>适合总结资料、拆解任务、整理计划，也会提醒你重要操作需要确认。</p>
+          </article>
+          <article>
+            <span>低打扰</span>
+            <h2>不抢走你的桌面</h2>
+            <p>桌宠常驻但不喧宾夺主，需要时点开，不需要时安静待在一旁。</p>
+          </article>
+        </section>
+
+        <section class="section two-column">
+          <article>
+            <p class="section-kicker">系统要求</p>
+            <h2>适用于常见 Windows 电脑</h2>
+            <p>推荐使用 Windows 10 或 Windows 11。安装前请确认电脑可以正常联网，并预留基础安装空间。</p>
+          </article>
+          <article>
+            <p class="section-kicker">安装说明</p>
+            <h2>三步开始使用</h2>
+            <ol class="steps">
+              <li>点击下载 Windows 安装包。</li>
+              <li>双击安装，按提示完成。</li>
+              <li>启动后点一下桌宠，就可以开始聊天。</li>
+            </ol>
+          </article>
+        </section>
+
+        <section class="section promise">
+          <div>
+            <p class="section-kicker">安全说明</p>
+            <h2>重要操作先确认，个人信息少收集</h2>
+            <p>爪爪默认只为完成聊天、额度统计和服务维护处理必要信息。涉及文件、付款、发送消息、删除等高风险操作时，会先征得你的确认。</p>
+          </div>
+          <ul>
+            <li>不要求普通用户理解复杂配置。</li>
+            <li>不会默认自动删除你的文件。</li>
+            <li>不会公开你的聊天内容和使用记录。</li>
+            <li>支持通过邮箱申请查询、更正或删除相关信息。</li>
+          </ul>
+        </section>
+
+        <section class="section faq">
+          <p class="section-kicker">常见问题</p>
+          <h2>下载前你可能关心这些</h2>
+          <details>
+            <summary>Windows 提示未知发布者怎么办？</summary>
+            <p>这是 Windows 对新应用的常见提醒。请只从本页面提供的下载入口获取安装包，不要使用来源不明的转载文件。</p>
+          </details>
+          <details>
+            <summary>浏览器提醒安装包需要确认怎么办？</summary>
+            <p>新发布的软件可能因为下载量较少而被浏览器提醒。请确认下载地址来自爪爪官方下载域名后再继续。</p>
+          </details>
+          <details>
+            <summary>如何退出桌宠？</summary>
+            <p>右键桌宠或托盘图标，选择退出即可。</p>
+          </details>
+          <details>
+            <summary>如何反馈问题？</summary>
+            <p>请发送邮件到 <a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a>，说明你遇到的现象和使用环境。</p>
+          </details>
+        </section>
+
+        <section class="section compliance-summary">
+          <p class="section-kicker">合规与声明</p>
+          <h2>清晰告知，尊重选择</h2>
+          <p>
+            MiniPet 项目组按照合法、正当、必要原则提供服务，并通过
+            <a href="/privacy">隐私政策</a>
+            和
+            <a href="/terms">用户协议</a>
+            说明信息处理、使用边界和用户权利。正式商用前，相关主体信息和条款仍应根据实际运营情况更新。
+          </p>
+        </section>
+      </section>
+
+      <section class="page legal-page" data-page="privacy" hidden>
+        <article class="document">
+          <p class="section-kicker">隐私政策</p>
+          <h1>爪爪隐私政策</h1>
+          <p class="updated">生效日期：2026 年 5 月 13 日</p>
+          <p>本政策由 MiniPet 项目组发布。我们会尽量用清晰、易懂的方式说明爪爪如何处理与你有关的信息。联系邮箱：<a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a>。</p>
+
+          <h2>我们会处理哪些信息</h2>
+          <p>为了让桌宠能识别你的设备、提供聊天服务和管理可用额度，爪爪可能处理匿名设备编号、应用版本、系统类型、服务请求记录、使用额度和必要的错误记录。</p>
+          <p>当你主动让爪爪总结文件、整理资料或完成类似任务时，相关内容只会在完成该次请求所需范围内使用。</p>
+
+          <h2>我们为什么处理这些信息</h2>
+          <p>这些信息主要用于提供聊天回复、保障服务稳定、统计可用额度、防止滥用、排查故障以及回应你的查询、更正或删除请求。</p>
+
+          <h2>保存期限</h2>
+          <p>我们会在实现处理目的所需的最短期限内保存相关信息。依法需要留存或为了处理争议、排查安全问题而必须保留的，会在必要范围内继续保存。</p>
+
+          <h2>共享与公开</h2>
+          <p>我们不会公开你的使用记录。除完成服务、依法配合监管、处理安全事件或取得你明确同意外，不会向无关第三方提供能够识别你的信息。</p>
+
+          <h2>你的权利</h2>
+          <p>你可以通过 <a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a> 申请查询、复制、更正、补充、删除相关个人信息，或撤回同意。我们会在核验身份和请求范围后依法处理。</p>
+
+          <h2>未成年人保护</h2>
+          <p>爪爪主要面向具备独立判断能力的学习和办公场景使用者。未成年人使用时，应在监护人同意和指导下进行。</p>
+
+          <h2>投诉与联系</h2>
+          <p>如你认为信息处理方式存在问题，或希望反馈安全、隐私、内容合规相关事项，请发送邮件到 <a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a>。</p>
         </article>
-        <article>
-          <h2>安装说明</h2>
-          <ol>
-            <li>点击下载</li>
-            <li>双击安装</li>
-            <li>安装完成后桌宠会自动启动</li>
-            <li>第一次打开会自动自我介绍</li>
-          </ol>
+      </section>
+
+      <section class="page legal-page" data-page="terms" hidden>
+        <article class="document">
+          <p class="section-kicker">用户协议</p>
+          <h1>爪爪用户协议</h1>
+          <p class="updated">生效日期：2026 年 5 月 13 日</p>
+          <p>本协议由 MiniPet 项目组发布。下载、安装或使用爪爪，即表示你理解并同意本协议和隐私政策。联系邮箱：<a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a>。</p>
+
+          <h2>服务用途</h2>
+          <p>爪爪提供学习、办公和日常整理辅助。AI 输出可能存在不准确、不完整或不适合特定场景的情况，重要事项请自行核验。</p>
+
+          <h2>使用边界</h2>
+          <p>你不得利用爪爪从事违法违规、侵权、欺诈、骚扰、危害网络安全、侵犯个人信息权益或其他损害国家利益、公共利益、他人合法权益的行为。</p>
+
+          <h2>安全确认</h2>
+          <p>涉及文件、支付、发送消息、删除、安装、提交等重要或高风险操作时，爪爪会尽量提示你确认。你仍需自行判断操作后果。</p>
+
+          <h2>服务变更与中断</h2>
+          <p>服务可能因网络、维护、升级、第三方服务、额度或不可抗力等原因暂时不可用。我们会尽量保持服务稳定，但不承诺任何场景下持续可用。</p>
+
+          <h2>知识产权</h2>
+          <p>爪爪的界面、名称、图形素材和相关内容受法律保护。未经许可，不得用于混淆来源或损害 MiniPet 项目组权益的用途。</p>
+
+          <h2>争议与反馈</h2>
+          <p>如出现争议，双方应先友好沟通。你可以通过 <a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a> 联系 MiniPet 项目组。</p>
         </article>
       </section>
 
-      <section class="section">
-        <h2>安全说明</h2>
-        <ul class="check-list">
-          <li>默认不需要配置 API Key</li>
-          <li>默认不会自动删除文件</li>
-          <li>高危操作需要确认</li>
-          <li>可选使用自己的模型 API Key</li>
-        </ul>
-      </section>
-
-      <section class="section" id="faq">
-        <h2>常见问题</h2>
-        <details>
-          <summary>Windows 提示未知发布者怎么办</summary>
-          <p>这是因为当前安装包尚未配置代码签名证书。请只从本页面下载，并核对页面显示的 SHA256。</p>
-        </details>
-        <details>
-          <summary>为什么安装包被浏览器提醒</summary>
-          <p>新发布的 Windows 安装包可能因为下载量较低被浏览器提示。请确认下载域名是 download.minipet.versecraft.cn。</p>
-        </details>
-        <details>
-          <summary>如何退出桌宠</summary>
-          <p>右键桌宠或托盘图标，选择退出。</p>
-        </details>
-        <details>
-          <summary>如何切换自己的模型</summary>
-          <p>打开桌宠设置，进入高级，选择使用自己的模型并填写 Base URL、Model 和 API Key。</p>
-        </details>
-        <details>
-          <summary>如何反馈问题</summary>
-          <p>请通过项目 GitHub issue 或下载页后续公布的反馈入口提交问题。</p>
-        </details>
-      </section>
-
-      <section class="section policy" id="privacy">
-        <h2>隐私政策</h2>
-        <p>MiniPet 默认使用匿名设备 ID 创建额度账户，不采集真实姓名、手机号或邮箱。默认托管模式下，对话请求会发送到 MiniPet 后端用于完成 AI 回复和额度统计。</p>
-        <p>用户主动选择文件总结或高级能力时，相关内容只会在完成该请求所需范围内使用。BYOK 模式下，用户自己的 API Key 仅保存在本机安全存储中。</p>
-      </section>
-
-      <section class="section policy" id="terms">
-        <h2>用户协议</h2>
-        <p>MiniPet 提供学习、办公辅助能力。用户应避免提交违法、侵权或高风险自动化请求。高危文件、支付、消息发送等操作需要用户确认。</p>
-        <p>服务可能因为网络、模型供应商、额度或维护原因暂时不可用。请在重要工作中自行确认 AI 输出结果。</p>
-      </section>
-
-      <section class="section" id="changelog">
-        <h2>更新日志</h2>
-        <div id="changelog-content">正在获取最新版本信息...</div>
+      <section class="page legal-page" data-page="changelog" hidden>
+        <article class="document">
+          <p class="section-kicker">更新说明</p>
+          <h1>爪爪更新说明</h1>
+          <div id="changelog-content" class="release-note">正在获取最新版本信息...</div>
+          <details class="verification-panel">
+            <summary>安装包安全校验</summary>
+            <p>如果你需要核对安装包完整性，可以对照这里的校验码。普通用户只需从本页面下载即可。</p>
+            <dl>
+              <div><dt>当前版本</dt><dd id="version">正在获取...</dd></div>
+              <div><dt>文件大小</dt><dd id="size">待公布</dd></div>
+              <div><dt>校验码</dt><dd id="checksum">待公布</dd></div>
+            </dl>
+          </details>
+        </article>
       </section>
     </main>
 
-    <footer>
-      <span>MiniPet</span>
-      <span>默认无需配置 API Key</span>
+    <footer class="site-footer">
+      <span>MiniPet 项目组</span>
+      <a href="mailto:bei666qi@gmail.com">bei666qi@gmail.com</a>
+      <a href="/privacy">隐私政策</a>
+      <a href="/terms">用户协议</a>
     </footer>
     <script src="/website/app.js" defer></script>
   </body>

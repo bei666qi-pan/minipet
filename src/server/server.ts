@@ -32,9 +32,11 @@ async function route(context: ServerContext, request: IncomingMessage, response:
   if (request.method === "OPTIONS") return empty(response, 204);
   if (request.method === "GET" && url.pathname === "/health") return json(response, 200, { ok: true, missing: missingProductionConfig(context.config) });
   if (request.method === "GET" && url.pathname === "/v1/releases/latest") return latestRelease(context, response);
-  if (request.method === "GET" && url.pathname === "/") return html(response, landingPage(context.config));
+  if (request.method === "GET" && ["/", "/privacy", "/terms", "/changelog"].includes(url.pathname)) return html(response, landingPage(context.config, url.pathname));
   if (request.method === "GET" && url.pathname === "/admin") return html(response, adminPage());
   if (request.method === "GET" && url.pathname === "/assets/Idle_Welcome.png") return serveAsset(response, "design/one/Idle_Welcome.png");
+  if (request.method === "GET" && url.pathname === "/assets/minipet-logo.png") return serveAsset(response, "apps/website/assets/minipet-logo.png");
+  if (request.method === "GET" && url.pathname === "/favicon.png") return serveAsset(response, "apps/website/assets/minipet-logo.png");
   if (request.method === "GET" && url.pathname === "/download/MiniPetSetup.exe") {
     response.writeHead(302, { Location: `${context.config.downloadOrigin.replace(/\/+$/, "")}/MiniPetSetup.exe` });
     response.end();

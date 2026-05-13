@@ -8,6 +8,7 @@ files:
   - package.json
 asar: true
 win:
+  icon: build/icon.ico
   signAndEditExecutable: false
   forceCodeSigning: false
   executableName: MiniPet
@@ -27,7 +28,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   runAfterFinish: true
-  shortcutName: MiniPet
+  shortcutName: 爪爪
   installerLanguages:
     - zh_CN
 extraResources:
@@ -35,3 +36,7 @@ extraResources:
     to: design
     filter:
       - "**/*"
+  - from: build/icon.png
+    to: brand/icon.png
+  - from: build/icon.ico
+    to: brand/icon.ico

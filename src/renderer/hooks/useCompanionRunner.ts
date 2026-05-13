@@ -29,67 +29,75 @@ interface CompanionResponse {
 
 export function useCompanionRunner() {
   const { selectedFiles, clearSelectedFiles, say, setPetState, rememberTalk, setTalkOpen } = useAppStore();
-  const { setCoreStatus } = useSettingsStore();
+  const { load, setCoreStatus } = useSettingsStore();
   const { createTask, updateTask } = useTaskStore();
   const [pendingInput, setPendingInput] = useState<string | undefined>();
+  const [pendingRequest, setPendingRequest] = useState<{ input: string; localRequestId: string } | undefined>();
   const [pendingPermission, setPendingPermission] = useState<PermissionDecision | undefined>();
+  const [permissionSubmitting, setPermissionSubmitting] = useState(false);
   const [coreAuthorizationText, setCoreAuthorizationText] = useState<string | undefined>();
   const [modelAuthorizationText, setModelAuthorizationText] = useState<string | undefined>();
 
-  async function run(input: string, options: { allowInstall?: boolean; confirmed?: boolean } = {}) {
+  async function run(
+    input: string,
+    options: { allowInstall?: boolean; confirmed?: boolean; authorizationScope?: "turn" | "switch_assisted"; continueTaskId?: string; skipRemember?: boolean } = {}
+  ) {
     const trimmed = input.trim();
     if (!trimmed) return;
     setPendingInput(trimmed);
-    rememberTalk({ role: "user", text: trimmed });
+    if (!options.skipRemember) rememberTalk({ role: "user", text: trimmed });
     setPetState("thinking");
     setTalkOpen(true);
-    const task = createTask({ title: guessTitle(trimmed), method: "一句话任务", risk: guessRisk(trimmed) });
-    updateTask(task.localRequestId, { status: "running" }, { stage: "prepare", label: "正在准备" });
+    const localRequestId = options.continueTaskId ?? createTask({ title: guessTitle(trimmed), method: "一句话任务", risk: guessRisk(trimmed) }).localRequestId;
+    setPendingRequest({ input: trimmed, localRequestId });
+    updateTask(localRequestId, { status: "running", error: undefined }, { stage: "prepare", label: options.continueTaskId ? "继续处理" : "正在准备" });
     try {
       const response = await window.minipet.invoke<CompanionResponse>("companion:run-task", {
         input: trimmed,
         files: selectedFiles,
-        localRequestId: task.localRequestId,
+        localRequestId,
         allowInstall: Boolean(options.allowInstall),
-        confirmed: Boolean(options.confirmed)
+        confirmed: Boolean(options.confirmed),
+        authorizationScope: options.authorizationScope
       });
 
       if (response.needsMoreInput && response.question) {
-        updateTask(task.localRequestId, { status: "stopped", result: response.question }, { stage: "need_input", label: "需要补充一句" });
+        updateTask(localRequestId, { status: "stopped", result: response.question }, { stage: "need_input", label: "需要你补一句" });
         say(response.question, "listening");
         return;
       }
 
       if (response.needsModelAuthorization) {
-        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "model_auth", label: "等待自带模型配置" });
-        setModelAuthorizationText("自带模型模式需要先保存你自己的 API Key。你也可以切回 MiniPet 托管模式直接聊天。");
-        say("我需要先拿到你的自带模型授权，或者切回托管模式。", "reminder_warning");
+        updateTask(localRequestId, { status: "waiting_confirmation" }, { stage: "model_auth", label: "等你设置聊天" });
+        setModelAuthorizationText("爪爪现在还不能聊天。打开设置补一下聊天信息后，就能继续。");
+        say("我需要你先补一下聊天设置。", "surprised_alert");
         return;
       }
 
       if (response.needsCoreAuthorization) {
-        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "core_auth", label: "等待准备高级能力" });
-        setCoreAuthorizationText("这个任务需要准备 OpenClaw 高级能力和运行环境。确认后我会开始下载或启动所需能力。");
-        say("这个任务需要你确认后，我才能准备高级能力。", "reminder_warning");
+        updateTask(localRequestId, { status: "waiting_confirmation" }, { stage: "core_auth", label: "等你确认" });
+        setCoreAuthorizationText("这件事需要先准备一个小工具。确认后爪爪会继续。");
+        say("这件事需要你先确认一下。", "surprised_alert");
         return;
       }
 
       if (response.requiresConfirmation && response.permission) {
-        updateTask(task.localRequestId, { status: "waiting_confirmation" }, { stage: "confirm", label: "等待确认" });
+        updateTask(localRequestId, { status: "waiting_confirmation", result: "这一步需要你点头后，我再继续。" }, { stage: "confirm", label: "等你确认" });
         setPendingPermission(response.permission);
-        say("这个操作需要你确认后继续。", "reminder_warning");
+        say("这一步需要你点头后，我再继续。", "surprised_alert");
         return;
       }
 
-      if (response.error) throw new Error(response.error);
+      if (response.error) throw new Error(friendlyError(response.error));
 
-      const text = formatResult(response.text || "我已经把任务交给智能核心了。", response.outputs);
-      updateTask(task.localRequestId, { status: "success", result: text, outputs: response.outputs }, { stage: "done", label: "已完成" });
+      const text = formatResult(response.text || "我已经接到这件事了。", response.outputs);
+      updateTask(localRequestId, { status: "success", result: text, outputs: response.outputs }, { stage: "done", label: "已完成" });
       say(text, response.outputs?.length ? "success_cheer" : "idle_welcome");
+      setPendingRequest(undefined);
       clearSelectedFiles();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      updateTask(task.localRequestId, { status: "error", error: message }, { stage: "failed", label: "需要重试" });
+      const message = error instanceof Error ? error.message : friendlyError(String(error));
+      updateTask(localRequestId, { status: "error", error: message }, { stage: "failed", label: "需要重试" });
       say(`我没能完成：${message}`, "apology_sad");
     }
   }
@@ -97,12 +105,20 @@ export function useCompanionRunner() {
   return {
     run,
     pendingInput,
+    pendingRequest,
     pendingPermission,
+    permissionSubmitting,
     coreAuthorizationText,
     modelAuthorizationText,
     clearCoreAuthorization: () => setCoreAuthorizationText(undefined),
     clearModelAuthorization: () => setModelAuthorizationText(undefined),
-    clearPermission: () => setPendingPermission(undefined),
+    clearPermission: () => {
+      const request = pendingRequest;
+      setPendingPermission(undefined);
+      setPendingRequest(undefined);
+      if (request) updateTask(request.localRequestId, { status: "stopped", result: "好，我先不继续。" }, { stage: "cancelled", label: "已取消" });
+      say("好，我先不继续。", "idle_calm");
+    },
     openSettingsForModelAuthorization: async () => {
       setModelAuthorizationText(undefined);
       await window.minipet.invoke("window:open-settings", { focus: "model" });
@@ -112,10 +128,19 @@ export function useCompanionRunner() {
       setCoreAuthorizationText(undefined);
       if (input) await run(input, { allowInstall: true });
     },
-    confirmPermission: async () => {
-      const input = pendingInput;
+    confirmPermission: async (scope: "turn" | "switch_assisted") => {
+      const request = pendingRequest;
+      const input = request?.input ?? pendingInput;
       setPendingPermission(undefined);
-      if (input) await run(input, { allowInstall: true, confirmed: true });
+      setPermissionSubmitting(true);
+      try {
+        if (request) updateTask(request.localRequestId, { status: "running", result: "好的，我继续处理。" }, { stage: "authorized", label: "已允许" });
+        await window.minipet.invoke("permission:authorize-turn", { authorizationScope: scope });
+        if (scope === "switch_assisted") await load();
+        if (input) await run(input, { allowInstall: true, confirmed: true, authorizationScope: scope, continueTaskId: request?.localRequestId, skipRemember: true });
+      } finally {
+        setPermissionSubmitting(false);
+      }
     },
     setCoreStatus
   };
@@ -127,7 +152,7 @@ function guessTitle(input: string): string {
   if (/文件|文档|pdf|表格|整理|总结/i.test(input)) return "整理文件";
   if (/搜索|资料|联网|查一下|网页/i.test(input)) return "找资料";
   if (/提醒|待办|任务/i.test(input)) return "任务提醒";
-  return "和 MiniPet 说话";
+  return "和爪爪说话";
 }
 
 function guessRisk(input: string): RiskLevel {
@@ -139,4 +164,10 @@ function guessRisk(input: string): RiskLevel {
 function formatResult(text: string, outputs?: CompanionOutput[]): string {
   if (!outputs?.length) return text;
   return `${text}\n\n已生成：\n${outputs.map((item) => `- ${item.label}: ${item.filePath}`).join("\n")}`;
+}
+
+function friendlyError(text: string): string {
+  if (/api|key|token|openclaw|scope|risk|mode|permission/i.test(text)) return "这一步还需要你确认或补充设置。";
+  if (/network|fetch|timeout|ECONN|ENOTFOUND/i.test(text)) return "网络有点不稳定，稍后再试一次。";
+  return text || "暂时没有完成。";
 }

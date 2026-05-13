@@ -1,4 +1,5 @@
-import { Menu, Tray, nativeImage } from "electron";
+import { Menu, Tray } from "electron";
+import { createBrandTrayImage } from "./brandAssets";
 
 export interface TrayActions {
   show: () => void;
@@ -12,14 +13,14 @@ export interface TrayActions {
 }
 
 export function createTray(actions: TrayActions): Tray {
-  const image = nativeImage.createEmpty();
+  const image = createBrandTrayImage();
   const tray = new Tray(image);
-  tray.setToolTip("MiniPet");
+  tray.setToolTip("爪爪");
   const rebuildMenu = () => {
     tray.setContextMenu(
       Menu.buildFromTemplate([
         {
-          label: "显示桌宠",
+          label: "打开爪爪",
           click: actions.show
         },
         {
@@ -40,7 +41,7 @@ export function createTray(actions: TrayActions): Tray {
           }
         },
         {
-          label: "隐藏桌宠",
+          label: "收起到悬浮球",
           click: actions.hide
         },
         { type: "separator" },

@@ -31,8 +31,8 @@ export function loadServerConfig(env = process.env): ServerConfig {
     adminEmail: env.ADMIN_EMAIL || env.MINIPET_ADMIN_EMAIL,
     adminPassword: env.ADMIN_PASSWORD || env.MINIPET_ADMIN_PASSWORD,
     adminPasswordHash: env.ADMIN_PASSWORD_HASH || env.MINIPET_ADMIN_PASSWORD_HASH,
-    releaseVersion: env.MINIPET_RELEASE_VERSION || env.npm_package_version || "0.1.0",
-    releaseNotes: env.MINIPET_RELEASE_NOTES || "MiniPet Windows installer",
+    releaseVersion: env.MINIPET_RELEASE_VERSION || env.npm_package_version || "0.1.1",
+    releaseNotes: env.MINIPET_RELEASE_NOTES || "爪爪 Windows 安装包",
     port: Number(env.PORT || 8080),
     dataDir: env.MINIPET_DATA_DIR || ".runtime-data/server"
   };

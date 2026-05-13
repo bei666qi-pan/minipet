@@ -51,7 +51,7 @@ export function AssetMapper() {
           ))}
         </div>
       ) : (
-        <p className="hint">没有扫描到图片，MiniPet 会使用 CSS 占位桌宠。</p>
+      <p className="hint">没有扫描到图片，爪爪会使用占位桌宠。</p>
       )}
     </section>
   );

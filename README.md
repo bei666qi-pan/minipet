@@ -1,6 +1,6 @@
-# MiniPet OpenClaw Companion
+# 爪爪桌面伙伴
 
-MiniPet OpenClaw Companion 是一个 Windows 优先的中文桌宠 MVP。它把 OpenClaw Gateway、联网搜索、PPT、浏览器控制、文件处理和本地 OpenAI-compatible API 包装成低打扰桌面入口。
+爪爪是一个 Windows 优先的中文桌宠 MVP。它把聊天、联网搜索、PPT、浏览器控制和文件处理包装成低打扰桌面入口。
 
 桌宠只负责入口、进度、权限提醒和结果展示；真正执行任务的是 OpenClaw Gateway / Skills / MCP。
 
@@ -48,7 +48,7 @@ pnpm run build
 - OpenClaw Token / Password：可留空，保存时使用 Electron `safeStorage`
 - 会话默认 `main`
 
-OpenClaw 不在线时，MiniPet 自动进入演示模式。联网搜索、PPT、浏览器和文件工具会提示需要连接 OpenClaw；普通聊天会尝试本地 OpenAI-compatible API。
+高级能力不在线时，爪爪会先用普通聊天陪你继续。
 
 ## 配置 API Key
 
@@ -56,26 +56,24 @@ OpenClaw 不在线时，MiniPet 自动进入演示模式。联网搜索、PPT、
 
 - Base URL：默认 `https://newkey.versecraft.cn/`
 - Model：默认 `minipet`，也可以在高级入口手动修改
-- API Key：用户输入，MiniPet 不会写死或写入日志
+- API Key：用户输入，爪爪不会写死或写入日志
 
 如果 endpoint 不支持原始 Base URL，客户端会自动尝试 `/v1` 规范化地址，例如 `https://newkey.versecraft.cn/v1/`。
 
 ## 素材映射
 
-MiniPet 自动扫描 `png/jpg/jpeg/webp/gif`，并按文件名关键词匹配状态：
+爪爪自动扫描 `png/jpg/jpeg/webp/gif`，并按文件名关键词匹配状态：
 
-- Idle_Welcome
-- Listening
-- Thinking
-- Working_Guide
-- Success_Cheer
-- Idle_Calm
-- Sleepy_Rest
-- Shy_Smile
-- Surprised_Alert
-- Apology_Sad
-- Reminder_Warning
-- Laptop_Working
+- Idle_Welcome：空闲欢迎形态
+- Listening：倾听形态
+- Thinking：思考形态
+- Working_Guide：工作讲解形态
+- Success_Cheer：完成庆祝形态
+- Idle_Calm：安静待机形态
+- Surprised_Alert：惊讶提醒形态
+- Apology_Sad：委屈道歉形态
+- Laptop_Working：电脑工作形态
+- pet_dragging：被拖拽形态
 
 如果没有图片，会显示 CSS 绘制的简约占位宠物。你可以在设置页手动把图片映射到每种桌宠状态。
 

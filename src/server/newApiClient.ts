@@ -14,6 +14,8 @@ export interface NewApiChatResult {
   upstreamStatus: number;
 }
 
+type JsonRecord = Record<string, unknown>;
+
 export async function chatWithNewApi(input: {
   baseUrl: string;
   apiKey: string;
@@ -42,10 +44,10 @@ export async function chatWithNewApi(input: {
   }
   const json = (await response.json()) as {
     model?: string;
-    choices?: Array<{ message?: { content?: string } }>;
     usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
-  const text = json.choices?.[0]?.message?.content?.trim() || "我暂时没有生成内容，请稍后再试。";
+  const text = extractChatText(json);
+  if (!hasVisibleText(text)) throw new Error("upstream_empty_response");
   const promptFallback = estimateTokensFromMessages(input.messages);
   const completionFallback = estimateTokensFromText(text);
   const promptTokens = normalizeTokenCount(json.usage?.prompt_tokens, promptFallback);
@@ -68,4 +70,51 @@ function normalizeBaseUrl(baseUrl: string): string {
 
 function ensureTrailingSlash(baseUrl: string): string {
   return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+}
+
+function extractChatText(value: unknown): string {
+  const record = asRecord(value);
+  if (!record) return "";
+  const choices = Array.isArray(record.choices) ? record.choices : [];
+  for (const choice of choices) {
+    const text = extractChoiceText(choice);
+    if (hasVisibleText(text)) return text.trim();
+  }
+  return extractFirstContent(record, ["text", "output_text"]).trim();
+}
+
+function extractChoiceText(value: unknown): string {
+  const record = asRecord(value);
+  if (!record) return "";
+  const message = asRecord(record.message);
+  const messageText = message ? extractFirstContent(message, ["content", "text", "output_text"]) : "";
+  if (hasVisibleText(messageText)) return messageText;
+  const delta = asRecord(record.delta);
+  const deltaText = delta ? extractFirstContent(delta, ["content", "text", "output_text"]) : "";
+  if (hasVisibleText(deltaText)) return deltaText;
+  return extractFirstContent(record, ["text", "output_text"]);
+}
+
+function extractFirstContent(record: JsonRecord, keys: string[]): string {
+  for (const key of keys) {
+    const text = extractContentText(record[key]);
+    if (hasVisibleText(text)) return text;
+  }
+  return "";
+}
+
+function extractContentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(extractContentText).join("");
+  const record = asRecord(value);
+  if (!record) return "";
+  return extractFirstContent(record, ["text", "content", "output_text"]);
+}
+
+function hasVisibleText(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+function asRecord(value: unknown): JsonRecord | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : undefined;
 }

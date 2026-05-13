@@ -96,11 +96,11 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function labelFromEvent(text: string): string {
-  if (/search|felo/.test(text)) return "正在搜索";
-  if (/browser|playwright/.test(text)) return "正在浏览器操作";
-  if (/ppt|slide/.test(text)) return "正在生成 PPT";
-  if (/tool|skill|mcp/.test(text)) return "正在调用能力";
+  if (/search|felo/.test(text)) return "正在查找";
+  if (/browser|playwright/.test(text)) return "正在处理网页";
+  if (/ppt|slide/.test(text)) return "正在生成演示";
+  if (/tool|skill|mcp/.test(text)) return "正在处理";
   if (/complete|done|final|success/.test(text)) return "完成";
   if (/fail|error/.test(text)) return "失败";
-  return "智能核心进度";
+  return "正在继续";
 }

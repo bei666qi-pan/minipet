@@ -2,20 +2,40 @@ const releaseState = {
   fallbackUrl: "https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe"
 };
 
+renderPage();
 void loadRelease();
+
+function renderPage() {
+  const page = pageFromPath(location.pathname);
+  document.querySelectorAll("[data-page]").forEach((section) => {
+    section.hidden = section.dataset.page !== page;
+  });
+}
+
+function pageFromPath(pathname) {
+  if (pathname === "/privacy") return "privacy";
+  if (pathname === "/terms") return "terms";
+  if (pathname === "/changelog") return "changelog";
+  return "home";
+}
 
 async function loadRelease() {
   const release = await fetchRelease();
   const installerUrl = normalizeInstallerUrl(release.installer_url || release.installerUrl || release.downloadUrl || releaseState.fallbackUrl);
-  document.querySelector("#download-button").href = installerUrl;
-  document.querySelector("#version").textContent = release.version || "0.1.0";
-  document.querySelector("#size").textContent = release.size ? formatBytes(release.size) : "待公布";
-  document.querySelector("#sha256").textContent = release.sha256 || "待公布";
-  document.querySelector("#changelog-content").innerHTML = `
-    <p><strong>${escapeHtml(release.version || "0.1.0")}</strong></p>
-    <p>${escapeHtml(release.release_notes || release.notes || "最新 Windows 安装包已准备好。")}</p>
-    <p>下载地址：<a href="${escapeHtml(installerUrl)}">${escapeHtml(installerUrl)}</a></p>
-  `;
+  const downloadButton = document.querySelector("#download-button");
+  if (downloadButton) downloadButton.href = installerUrl;
+
+  setText("#version", release.version || "0.1.1");
+  setText("#size", release.size ? formatBytes(release.size) : "待公布");
+  setText("#checksum", release.sha256 || "待公布");
+  const changelog = document.querySelector("#changelog-content");
+  if (changelog) {
+    changelog.innerHTML = `
+      <p><strong>${escapeHtml(release.version || "0.1.1")}</strong></p>
+      <p>${escapeHtml(release.release_notes || release.notes || "最新 Windows 版本已准备好。")}</p>
+      <p><a class="button primary" href="${escapeHtml(installerUrl)}">下载 Windows 版</a></p>
+    `;
+  }
 }
 
 async function fetchRelease() {
@@ -30,7 +50,7 @@ async function fetchRelease() {
     }
   }
   return {
-    version: "0.1.0",
+    version: "0.1.1",
     installerUrl: releaseState.fallbackUrl,
     notes: "暂时无法获取最新版本信息，请稍后刷新。"
   };
@@ -44,6 +64,11 @@ function normalizeInstallerUrl(value) {
     // Fall through to safe fallback.
   }
   return releaseState.fallbackUrl;
+}
+
+function setText(selector, text) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = text;
 }
 
 function formatBytes(value) {
