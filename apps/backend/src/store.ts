@@ -74,6 +74,10 @@ export interface OverviewRecord {
   totalQuotaTokens: number;
   totalUsedTokens: number;
   totalRequests: number;
+  todayNewUsers: number;
+  todayRequests: number;
+  todayTokens: number;
+  recentErrors: UsageLogRecord[];
 }
 
 export interface MiniPetStore {
@@ -82,6 +86,7 @@ export interface MiniPetStore {
   getUser(id: string): Promise<UserRecord | undefined>;
   listUsers(limit?: number): Promise<UserRecord[]>;
   updateUserQuota(id: string, quotaTotalTokens: number): Promise<UserRecord | undefined>;
+  resetUserMonthlyUsage(id: string): Promise<UserRecord | undefined>;
   updateUserStatus(id: string, status: UserStatus): Promise<UserRecord | undefined>;
   overview(): Promise<OverviewRecord>;
   recordUsage(input: Omit<UsageLogRecord, "id" | "createdAt">): Promise<UsageLogRecord>;
@@ -150,6 +155,13 @@ class SqliteMiniPetStore implements MiniPetStore {
     return this.getUser(id);
   }
 
+  async resetUserMonthlyUsage(id: string): Promise<UserRecord | undefined> {
+    const now = new Date().toISOString();
+    const [start, end] = currentPeriod();
+    this.db.prepare("UPDATE users SET quota_used_tokens = 0, quota_period_start = ?, quota_period_end = ?, updated_at = ? WHERE id = ?").run(start, end, now, id);
+    return this.getUser(id);
+  }
+
   async updateUserStatus(id: string, status: UserStatus): Promise<UserRecord | undefined> {
     const now = new Date().toISOString();
     this.db.prepare("UPDATE users SET status = ?, updated_at = ? WHERE id = ?").run(status, now, id);
@@ -157,17 +169,26 @@ class SqliteMiniPetStore implements MiniPetStore {
   }
 
   async overview(): Promise<OverviewRecord> {
+    const since = startOfTodayIso();
     const row = this.db.prepare(`
       SELECT
         COUNT(*) AS total_users,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_users,
         SUM(CASE WHEN status = 'disabled' THEN 1 ELSE 0 END) AS disabled_users,
         COALESCE(SUM(quota_total_tokens), 0) AS total_quota_tokens,
-        COALESCE(SUM(quota_used_tokens), 0) AS total_used_tokens
+        COALESCE(SUM(quota_used_tokens), 0) AS total_used_tokens,
+        SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS today_new_users
       FROM users
-    `).get() as Row;
-    const usage = this.db.prepare("SELECT COUNT(*) AS total_requests FROM usage_logs").get() as Row;
-    return rowToOverview({ ...row, ...usage });
+    `).get(since) as Row;
+    const usage = this.db.prepare(`
+      SELECT
+        COUNT(*) AS total_requests,
+        SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS today_requests,
+        COALESCE(SUM(CASE WHEN created_at >= ? THEN total_tokens ELSE 0 END), 0) AS today_tokens
+      FROM usage_logs
+    `).get(since, since) as Row;
+    const recentErrors = (this.db.prepare("SELECT * FROM usage_logs WHERE status != 'success' ORDER BY created_at DESC LIMIT 10").all() as Row[]).map(rowToUsage);
+    return rowToOverview({ ...row, ...usage }, recentErrors);
   }
 
   async recordUsage(input: Omit<UsageLogRecord, "id" | "createdAt">): Promise<UsageLogRecord> {
@@ -293,12 +314,22 @@ class PostgresMiniPetStore implements MiniPetStore {
     return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
   }
 
+  async resetUserMonthlyUsage(id: string): Promise<UserRecord | undefined> {
+    const [start, end] = currentPeriod();
+    const result = await this.pool.query(
+      "UPDATE users SET quota_used_tokens = 0, quota_period_start = $2, quota_period_end = $3, updated_at = now() WHERE id = $1 RETURNING *",
+      [id, start, end]
+    );
+    return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
+  }
+
   async updateUserStatus(id: string, status: UserStatus): Promise<UserRecord | undefined> {
     const result = await this.pool.query("UPDATE users SET status = $2, updated_at = now() WHERE id = $1 RETURNING *", [id, status]);
     return result.rows[0] ? rowToUser(result.rows[0]) : undefined;
   }
 
   async overview(): Promise<OverviewRecord> {
+    const since = startOfTodayIso();
     const result = await this.pool.query(`
       SELECT
         COUNT(*)::int AS total_users,
@@ -306,10 +337,14 @@ class PostgresMiniPetStore implements MiniPetStore {
         COUNT(*) FILTER (WHERE status = 'disabled')::int AS disabled_users,
         COALESCE(SUM(quota_total_tokens), 0)::bigint AS total_quota_tokens,
         COALESCE(SUM(quota_used_tokens), 0)::bigint AS total_used_tokens,
-        (SELECT COUNT(*)::int FROM usage_logs) AS total_requests
+        COUNT(*) FILTER (WHERE created_at >= $1)::int AS today_new_users,
+        (SELECT COUNT(*)::int FROM usage_logs) AS total_requests,
+        (SELECT COUNT(*)::int FROM usage_logs WHERE created_at >= $1) AS today_requests,
+        (SELECT COALESCE(SUM(total_tokens), 0)::bigint FROM usage_logs WHERE created_at >= $1) AS today_tokens
       FROM users
-    `);
-    return rowToOverview(result.rows[0]);
+    `, [since]);
+    const recentErrors = await this.pool.query("SELECT * FROM usage_logs WHERE status != 'success' ORDER BY created_at DESC LIMIT 10");
+    return rowToOverview(result.rows[0], recentErrors.rows.map(rowToUsage));
   }
 
   async recordUsage(input: Omit<UsageLogRecord, "id" | "createdAt">): Promise<UsageLogRecord> {
@@ -588,15 +623,25 @@ function rowToAudit(row: Row): AuditLogRecord {
   };
 }
 
-function rowToOverview(row: Row): OverviewRecord {
+function rowToOverview(row: Row, recentErrors: UsageLogRecord[] = []): OverviewRecord {
   return {
     totalUsers: Number(row.total_users || 0),
     activeUsers: Number(row.active_users || 0),
     disabledUsers: Number(row.disabled_users || 0),
     totalQuotaTokens: Number(row.total_quota_tokens || 0),
     totalUsedTokens: Number(row.total_used_tokens || 0),
-    totalRequests: Number(row.total_requests || 0)
+    totalRequests: Number(row.total_requests || 0),
+    todayNewUsers: Number(row.today_new_users || 0),
+    todayRequests: Number(row.today_requests || 0),
+    todayTokens: Number(row.today_tokens || 0),
+    recentErrors
   };
+}
+
+function startOfTodayIso(): string {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
 }
 
 function currentPeriod(): [string, string] {

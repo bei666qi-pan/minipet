@@ -10,6 +10,7 @@ export interface BackendConfig {
   adminEmail?: string;
   adminPassword?: string;
   adminPasswordHash?: string;
+  releaseWebhookSecret?: string;
   releaseVersion: string;
   releaseNotes: string;
   blockedWords: string[];
@@ -37,6 +38,7 @@ export function loadBackendConfig(env = process.env): BackendConfig {
     adminEmail: env.ADMIN_EMAIL || env.MINIPET_ADMIN_EMAIL,
     adminPassword: env.ADMIN_PASSWORD || env.MINIPET_ADMIN_PASSWORD,
     adminPasswordHash: env.ADMIN_PASSWORD_HASH || env.MINIPET_ADMIN_PASSWORD_HASH,
+    releaseWebhookSecret: env.ADMIN_RELEASE_TOKEN || env.BACKEND_RELEASE_WEBHOOK_SECRET || env.MINIPET_RELEASE_WEBHOOK_SECRET,
     releaseVersion: env.MINIPET_RELEASE_VERSION || env.npm_package_version || "0.1.0",
     releaseNotes: env.MINIPET_RELEASE_NOTES || "MiniPet Windows installer",
     blockedWords: splitWords(env.MINIPET_BLOCKED_WORDS),

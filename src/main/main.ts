@@ -80,6 +80,7 @@ app.whenReady().then(async () => {
   openClaw.on("status", (status) => sendToRenderer("openclaw:status", redactSecrets(status)));
   coreManager.on("progress", (status) => sendToRenderer("core:progress", redactSecrets(status)));
   void bootstrapCloudSession();
+  setTimeout(() => void checkForUpdates(true, true), 2500);
   if (settings.coreAutoStart) void coreManager.checkAndConnect();
 });
 
@@ -204,17 +205,17 @@ async function bootstrapCloudSession(): Promise<void> {
     const result = await cloudClient.bootstrap(app.getVersion());
     latestCloudStatus = { online: true, quotaRemaining: result.quotaRemaining };
   } catch {
-    latestCloudStatus = { online: false, message: "网络不可用。MiniPet 已启动，等网络恢复后就能继续对话。" };
+    latestCloudStatus = { online: false, message: "当前网络异常，稍后再试" };
   }
   sendToRenderer("cloud:status", latestCloudStatus);
 }
 
-async function checkForUpdates(showDialog: boolean): Promise<unknown> {
+async function checkForUpdates(showDialog: boolean, notifyOnlyWhenUpdate = false): Promise<unknown> {
   try {
     const release = await cloudClient.getLatestRelease();
     const current = app.getVersion();
     const hasUpdate = release.version !== current;
-    if (showDialog) {
+    if (showDialog && (!notifyOnlyWhenUpdate || hasUpdate)) {
       const options = {
         type: hasUpdate ? "info" : "none",
         title: "MiniPet 更新",

@@ -17,8 +17,9 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
     "dist:dir": "pnpm run build && electron-builder --dir",
-    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis --publish never",
-    "release:upload": "node scripts/publish-download-artifact.mjs"
+    "dist:win": "pnpm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis --x64 --publish never && pnpm run release:manifest",
+    "release:manifest": "node scripts/generate-release-manifest.mjs",
+    "release:upload": "node scripts/upload-release-to-tos.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",

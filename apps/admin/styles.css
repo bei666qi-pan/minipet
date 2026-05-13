@@ -1,0 +1,271 @@
+:root {
+  color: #243044;
+  background: #f6fbff;
+  font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  font-size: 15px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1080px;
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(166, 215, 255, 0.32), rgba(255, 248, 233, 0.36)),
+    #f6fbff;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #9fb9d8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #284566;
+  cursor: pointer;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+button.primary {
+  background: #3a8dde;
+  border-color: #3a8dde;
+  color: white;
+}
+
+button.danger {
+  color: #a63d4b;
+  border-color: #e2a7ae;
+  background: #fff6f7;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+input,
+textarea {
+  border: 1px solid #a9bfd9;
+  border-radius: 8px;
+  background: #fff;
+  color: #243044;
+  min-height: 38px;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+textarea {
+  min-height: 98px;
+  resize: vertical;
+}
+
+.login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+
+.login-panel {
+  width: 420px;
+  border: 1px solid rgba(118, 151, 188, 0.38);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 48px rgba(70, 103, 139, 0.16);
+  padding: 28px;
+}
+
+.login-panel h1,
+.page-title h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.muted {
+  color: #64758a;
+}
+
+.error {
+  color: #a63d4b;
+  min-height: 22px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid rgba(105, 138, 175, 0.28);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 22px;
+}
+
+.brand {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.nav {
+  display: grid;
+  gap: 10px;
+}
+
+.nav button {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+.nav button.active {
+  background: #e8f3ff;
+  border-color: #7eb0e2;
+}
+
+.main {
+  padding: 26px;
+}
+
+.page-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.metric,
+.panel {
+  border: 1px solid rgba(105, 138, 175, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 30px rgba(70, 103, 139, 0.08);
+}
+
+.metric {
+  padding: 16px;
+}
+
+.metric strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.panel {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.panel h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.search {
+  width: 360px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid #dce8f5;
+  padding: 12px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: #52677f;
+  font-weight: 600;
+  background: #f5faff;
+}
+
+.status {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #eaf7ef;
+  color: #247246;
+}
+
+.status.disabled {
+  background: #fff0f1;
+  color: #a63d4b;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-grid,
+.release-grid,
+.logs-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.code {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.empty {
+  color: #64758a;
+  padding: 18px 0;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  max-width: 420px;
+  border: 1px solid #9fb9d8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(70, 103, 139, 0.18);
+  padding: 12px 14px;
+}

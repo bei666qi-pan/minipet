@@ -10,6 +10,7 @@ asar: true
 win:
   signAndEditExecutable: false
   forceCodeSigning: false
+  executableName: MiniPet
   target:
     - target: nsis
       arch:
@@ -17,12 +18,12 @@ win:
     - target: dir
       arch:
         - x64
-  artifactName: MiniPetSetup.${ext}
+  artifactName: MiniPetSetup-${version}-x64.${ext}
 nsis:
-  oneClick: false
+  oneClick: true
   perMachine: false
   allowElevation: false
-  allowToChangeInstallationDirectory: true
+  allowToChangeInstallationDirectory: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
   runAfterFinish: true

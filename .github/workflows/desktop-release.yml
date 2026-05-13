@@ -1,0 +1,118 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  desktop-release:
+    runs-on: windows-latest
+    env:
+      MINIPET_DOWNLOAD_ORIGIN: ${{ secrets.MINIPET_DOWNLOAD_ORIGIN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Build Windows installer
+        run: pnpm run dist:win
+
+      - name: Generate release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $tag = "${{ github.ref_name }}"
+          if ("${{ github.ref_type }}" -eq "tag" -and $tag.StartsWith("v") -and $tag.Substring(1) -ne $version) {
+            throw "Tag $tag does not match package version $version"
+          }
+          $installer = "release/MiniPetSetup-$version-x64.exe"
+          if (-not (Test-Path $installer)) {
+            throw "Installer not found: $installer"
+          }
+          $sha256 = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          $size = (Get-Item $installer).Length
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "installer=$installer" >> $env:GITHUB_OUTPUT
+          "sha256=$sha256" >> $env:GITHUB_OUTPUT
+          "size=$size" >> $env:GITHUB_OUTPUT
+
+      - name: Upload GitHub Release Asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.meta.outputs.tag }}"
+          $installer = "${{ steps.meta.outputs.installer }}"
+          $manifest = "release/latest.json"
+          $versionManifest = "release/release-manifest-${{ steps.meta.outputs.version }}.json"
+          $notes = "MiniPet ${{ steps.meta.outputs.version }}`n`nSHA256: ${{ steps.meta.outputs.sha256 }}`nSize: ${{ steps.meta.outputs.size }} bytes"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --draft --title "MiniPet ${{ steps.meta.outputs.version }}" --notes $notes
+          }
+          gh release upload $tag $installer $manifest $versionManifest --clobber
+
+      - name: Upload installer to Volcengine TOS
+        env:
+          VOLCENGINE_ACCESS_KEY_ID: ${{ secrets.VOLCENGINE_ACCESS_KEY_ID }}
+          VOLCENGINE_SECRET_ACCESS_KEY: ${{ secrets.VOLCENGINE_SECRET_ACCESS_KEY }}
+          VOLCENGINE_TOS_BUCKET: ${{ secrets.VOLCENGINE_TOS_BUCKET }}
+          VOLCENGINE_TOS_REGION: ${{ secrets.VOLCENGINE_TOS_REGION }}
+          VOLCENGINE_TOS_ENDPOINT: ${{ secrets.VOLCENGINE_TOS_ENDPOINT }}
+          VOLCENGINE_CDN_DOMAIN: ${{ secrets.MINIPET_DOWNLOAD_ORIGIN }}
+        run: pnpm run release:upload
+
+      - name: Update backend release record
+        env:
+          ADMIN_RELEASE_TOKEN: ${{ secrets.ADMIN_RELEASE_TOKEN }}
+          BACKEND_RELEASE_WEBHOOK_SECRET: ${{ secrets.BACKEND_RELEASE_WEBHOOK_SECRET }}
+          MINIPET_API_ORIGIN: https://api.minipet.versecraft.cn
+        shell: pwsh
+        run: |
+          $token = $env:ADMIN_RELEASE_TOKEN
+          if (-not $token) {
+            $token = $env:BACKEND_RELEASE_WEBHOOK_SECRET
+          }
+          if (-not $token) {
+            throw "ADMIN_RELEASE_TOKEN or BACKEND_RELEASE_WEBHOOK_SECRET is required"
+          }
+          $manifest = Get-Content release/latest.json -Raw | ConvertFrom-Json
+          $body = @{
+            version = $manifest.version
+            channel = $manifest.channel
+            installer_url = $manifest.installer_url
+            sha256 = $manifest.sha256
+            size = $manifest.size
+            release_notes = $manifest.release_notes
+            published_at = $manifest.published_at
+          } | ConvertTo-Json -Depth 5
+          Invoke-RestMethod -Method Post -Uri "$env:MINIPET_API_ORIGIN/admin/releases/publish" -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body $body | Out-Null

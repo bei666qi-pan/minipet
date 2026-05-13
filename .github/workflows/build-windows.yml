@@ -40,7 +40,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MiniPetSetup
-          path: release/MiniPetSetup.exe
+          path: |
+            release/MiniPetSetup-*-x64.exe
+            release/latest.json
+            release/release-manifest-*.json
           if-no-files-found: error
 
       - name: Publish installer to TOS when secrets are configured
@@ -50,4 +53,6 @@ jobs:
           VOLCENGINE_TOS_BUCKET: ${{ secrets.VOLCENGINE_TOS_BUCKET }}
           VOLCENGINE_TOS_REGION: ${{ secrets.VOLCENGINE_TOS_REGION }}
           VOLCENGINE_TOS_ENDPOINT: ${{ secrets.VOLCENGINE_TOS_ENDPOINT }}
-        run: node scripts/publish-download-artifact.mjs release/MiniPetSetup.exe MiniPetSetup.exe
+          MINIPET_DOWNLOAD_ORIGIN: https://download.minipet.versecraft.cn
+        shell: pwsh
+        run: node scripts/upload-release-to-tos.mjs

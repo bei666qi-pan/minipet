@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MiniPet - 桌面 AI 学习/办公搭子</title>
+    <meta name="description" content="MiniPet 是新手友好的桌面 AI 学习/办公搭子，默认无需配置 API Key。" />
+    <link rel="stylesheet" href="/website/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <nav>
+        <strong>MiniPet</strong>
+        <div>
+          <a href="#changelog">更新日志</a>
+          <a href="#privacy">隐私政策</a>
+          <a href="#terms">用户协议</a>
+        </div>
+      </nav>
+      <section class="hero-body">
+        <div>
+          <p class="eyebrow">Windows 桌宠</p>
+          <h1>MiniPet</h1>
+          <p class="tagline">新手友好的桌面 AI 学习/办公搭子</p>
+          <div class="actions">
+            <a id="download-button" class="button primary" href="https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe">下载 Windows 版</a>
+            <a class="button" href="#changelog">查看更新日志</a>
+          </div>
+          <div class="release-card" aria-live="polite">
+            <div><span>当前版本号</span><strong id="version">正在获取...</strong></div>
+            <div><span>文件大小</span><strong id="size">-</strong></div>
+            <div><span>SHA256</span><strong id="sha256" class="mono">-</strong></div>
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="section grid-2">
+        <article>
+          <h2>系统要求</h2>
+          <p>Windows 10 / Windows 11</p>
+        </article>
+        <article>
+          <h2>安装说明</h2>
+          <ol>
+            <li>点击下载</li>
+            <li>双击安装</li>
+            <li>安装完成后桌宠会自动启动</li>
+            <li>第一次打开会自动自我介绍</li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="section">
+        <h2>安全说明</h2>
+        <ul class="check-list">
+          <li>默认不需要配置 API Key</li>
+          <li>默认不会自动删除文件</li>
+          <li>高危操作需要确认</li>
+          <li>可选使用自己的模型 API Key</li>
+        </ul>
+      </section>
+
+      <section class="section" id="faq">
+        <h2>常见问题</h2>
+        <details>
+          <summary>Windows 提示未知发布者怎么办</summary>
+          <p>这是因为当前安装包尚未配置代码签名证书。请只从本页面下载，并核对页面显示的 SHA256。</p>
+        </details>
+        <details>
+          <summary>为什么安装包被浏览器提醒</summary>
+          <p>新发布的 Windows 安装包可能因为下载量较低被浏览器提示。请确认下载域名是 download.minipet.versecraft.cn。</p>
+        </details>
+        <details>
+          <summary>如何退出桌宠</summary>
+          <p>右键桌宠或托盘图标，选择退出。</p>
+        </details>
+        <details>
+          <summary>如何切换自己的模型</summary>
+          <p>打开桌宠设置，进入高级，选择使用自己的模型并填写 Base URL、Model 和 API Key。</p>
+        </details>
+        <details>
+          <summary>如何反馈问题</summary>
+          <p>请通过项目 GitHub issue 或下载页后续公布的反馈入口提交问题。</p>
+        </details>
+      </section>
+
+      <section class="section policy" id="privacy">
+        <h2>隐私政策</h2>
+        <p>MiniPet 默认使用匿名设备 ID 创建额度账户，不采集真实姓名、手机号或邮箱。默认托管模式下，对话请求会发送到 MiniPet 后端用于完成 AI 回复和额度统计。</p>
+        <p>用户主动选择文件总结或高级能力时，相关内容只会在完成该请求所需范围内使用。BYOK 模式下，用户自己的 API Key 仅保存在本机安全存储中。</p>
+      </section>
+
+      <section class="section policy" id="terms">
+        <h2>用户协议</h2>
+        <p>MiniPet 提供学习、办公辅助能力。用户应避免提交违法、侵权或高风险自动化请求。高危文件、支付、消息发送等操作需要用户确认。</p>
+        <p>服务可能因为网络、模型供应商、额度或维护原因暂时不可用。请在重要工作中自行确认 AI 输出结果。</p>
+      </section>
+
+      <section class="section" id="changelog">
+        <h2>更新日志</h2>
+        <div id="changelog-content">正在获取最新版本信息...</div>
+      </section>
+    </main>
+
+    <footer>
+      <span>MiniPet</span>
+      <span>默认无需配置 API Key</span>
+    </footer>
+    <script src="/website/app.js" defer></script>
+  </body>
+</html>

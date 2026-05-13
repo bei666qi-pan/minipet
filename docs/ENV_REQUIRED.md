@@ -14,6 +14,7 @@ This machine did not have the deployment and model environment variables availab
 - `JWT_SECRET`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD_HASH` preferred, or `ADMIN_PASSWORD`
+- `ADMIN_RELEASE_TOKEN` or `BACKEND_RELEASE_WEBHOOK_SECRET` for GitHub Actions release publishing
 
 ## Required For Windows Installer CDN Upload
 

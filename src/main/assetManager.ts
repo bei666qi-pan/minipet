@@ -51,6 +51,22 @@ export const PET_STATE_KEYS: PetState[] = [
   "dragging"
 ];
 
+export const REQUESTED_PET_ASSET_FILES: Record<PetState, string> = {
+  idle_welcome: "Idle_Welcome.png",
+  listening: "Listening.png",
+  thinking: "Thinking.png",
+  working_guide: "Working_Guide.png",
+  success_cheer: "Success_Cheer.png",
+  idle_calm: "Idle_Calm.png",
+  sleepy_rest: "Sleepy_Rest.png",
+  shy_smile: "Shy_Smile.png",
+  surprised_alert: "Surprised_Alert.png",
+  apology_sad: "Apology_Sad.png",
+  reminder_warning: "Reminder_Warning.png",
+  laptop_working: "Laptop_Working.png",
+  dragging: "pet_dragging.png"
+};
+
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
 const LEGACY_STATE_ALIASES: Record<string, PetState> = {
@@ -86,6 +102,8 @@ export function defaultAssetDirectory(projectRoot = process.cwd()): string {
 }
 
 export function guessPetState(fileName: string): PetState {
+  const exact = Object.entries(REQUESTED_PET_ASSET_FILES).find(([, expectedFileName]) => expectedFileName.toLowerCase() === fileName.toLowerCase());
+  if (exact) return exact[0] as PetState;
   const hit = STATE_KEYWORDS.find(([, pattern]) => pattern.test(fileName));
   return hit?.[0] ?? "idle_welcome";
 }

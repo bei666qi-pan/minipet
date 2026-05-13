@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 import http from "node:http";
+import path from "node:path";
 import { URL } from "node:url";
 import { hashPassword, readBearerToken, signToken, verifyPassword, verifyToken } from "./auth";
 import type { BackendConfig } from "./config";
@@ -24,6 +26,8 @@ interface BackendServer extends http.Server {
 
 const DEVICE_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 365;
 const ADMIN_TOKEN_TTL_SECONDS = 60 * 60 * 12;
+const ADMIN_ASSET_ROOT = path.resolve(process.cwd(), "apps/admin");
+const WEBSITE_ASSET_ROOT = path.resolve(process.cwd(), "apps/website");
 
 export async function createBackendServer(config: BackendConfig = loadBackendConfig()): Promise<BackendServer> {
   if (config.nodeEnv === "production" && !config.jwtSecret) throw new Error("JWT_SECRET is required in production");
@@ -67,6 +71,15 @@ async function routeRequest(context: RequestContext, request: http.IncomingMessa
   }
 
   try {
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) return await serveWebsiteAsset(response, "index.html");
+    if (request.method === "GET" && url.pathname === "/website/app.js") return await serveWebsiteAsset(response, "app.js");
+    if (request.method === "GET" && url.pathname === "/website/styles.css") return await serveWebsiteAsset(response, "styles.css");
+    if (request.method === "GET" && ["/changelog", "/privacy", "/terms"].includes(url.pathname)) return await serveWebsiteAsset(response, "index.html");
+
+    if (request.method === "GET" && (url.pathname === "/admin" || url.pathname === "/admin/")) return await serveAdminAsset(response, "index.html");
+    if (request.method === "GET" && url.pathname === "/admin/app.js") return await serveAdminAsset(response, "app.js");
+    if (request.method === "GET" && url.pathname === "/admin/styles.css") return await serveAdminAsset(response, "styles.css");
+
     if (request.method === "GET" && url.pathname === "/health") return sendHealth(context, response);
     if (request.method === "POST" && url.pathname === "/v1/bootstrap") return await handleBootstrap(context, request, response);
     if (request.method === "GET" && url.pathname === "/v1/me") return await handleMe(context, request, response);
@@ -79,10 +92,12 @@ async function routeRequest(context: RequestContext, request: http.IncomingMessa
     if (request.method === "GET" && url.pathname === "/admin/users") return await handleAdminUsers(context, request, response);
     if (request.method === "GET" && /^\/admin\/users\/[^/]+$/.test(url.pathname)) return await handleAdminUser(context, request, response, segment(url.pathname, 3));
     if (request.method === "PATCH" && /^\/admin\/users\/[^/]+\/quota$/.test(url.pathname)) return await handleAdminUserQuota(context, request, response, segment(url.pathname, 3));
+    if (request.method === "POST" && /^\/admin\/users\/[^/]+\/reset-quota$/.test(url.pathname)) return await handleAdminResetQuota(context, request, response, segment(url.pathname, 3));
     if (request.method === "PATCH" && /^\/admin\/users\/[^/]+\/status$/.test(url.pathname)) return await handleAdminUserStatus(context, request, response, segment(url.pathname, 3));
     if (request.method === "GET" && url.pathname === "/admin/usage") return await handleAdminUsage(context, request, response);
     if (request.method === "GET" && url.pathname === "/admin/releases") return await handleAdminReleases(context, request, response);
     if (request.method === "POST" && url.pathname === "/admin/releases") return await handleAdminCreateRelease(context, request, response);
+    if (request.method === "POST" && url.pathname === "/admin/releases/publish") return await handleReleaseWebhook(context, request, response);
     if (request.method === "GET" && url.pathname === "/admin/audit-logs") return await handleAdminAuditLogs(context, request, response);
 
     sendJson(response, 404, { error: "not_found" });
@@ -247,7 +262,7 @@ async function handleAdminLogin(context: RequestContext, request: http.IncomingM
 async function handleAdminOverview(context: RequestContext, request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
   const admin = await requireAdmin(context, request, response);
   if (!admin) return;
-  sendJson(response, 200, await context.store.overview());
+  sendJson(response, 200, { ...(await context.store.overview()), defaultQuotaTokens: DEFAULT_DEVICE_QUOTA_TOKENS });
 }
 
 async function handleAdminUsers(context: RequestContext, request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
@@ -261,7 +276,8 @@ async function handleAdminUser(context: RequestContext, request: http.IncomingMe
   if (!admin) return;
   const user = await context.store.getUser(id);
   if (!user) return sendJson(response, 404, { error: "user_not_found" });
-  sendJson(response, 200, { user: toPublicUser(user) });
+  const usage = (await context.store.listUsage()).filter((entry) => entry.userId === id);
+  sendJson(response, 200, { user: toPublicUser(user), usage, recentRequests: usage.slice(0, 20) });
 }
 
 async function handleAdminUserQuota(context: RequestContext, request: http.IncomingMessage, response: http.ServerResponse, id: string): Promise<void> {
@@ -273,6 +289,15 @@ async function handleAdminUserQuota(context: RequestContext, request: http.Incom
   const user = await context.store.updateUserQuota(id, quota);
   if (!user) return sendJson(response, 404, { error: "user_not_found" });
   await addAudit(context, "admin", admin.id, "user_quota_updated", id, { quotaTotalTokens: user.quotaTotalTokens });
+  sendJson(response, 200, { user: toPublicUser(user) });
+}
+
+async function handleAdminResetQuota(context: RequestContext, request: http.IncomingMessage, response: http.ServerResponse, id: string): Promise<void> {
+  const admin = await requireAdmin(context, request, response);
+  if (!admin) return;
+  const user = await context.store.resetUserMonthlyUsage(id);
+  if (!user) return sendJson(response, 404, { error: "user_not_found" });
+  await addAudit(context, "admin", admin.id, "user_quota_reset", id, { quotaUsedTokens: user.quotaUsedTokens });
   sendJson(response, 200, { user: toPublicUser(user) });
 }
 
@@ -317,6 +342,39 @@ async function handleAdminCreateRelease(context: RequestContext, request: http.I
     notes: asString(body.notes) || ""
   });
   await addAudit(context, "admin", admin.id, "release_created", release.id, { version: release.version, channel: release.channel });
+  sendJson(response, 201, { release });
+}
+
+async function handleReleaseWebhook(context: RequestContext, request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
+  if (!context.config.releaseWebhookSecret) {
+    sendJson(response, 503, { error: "release_webhook_not_configured" });
+    return;
+  }
+  const token = readBearerToken(request.headers.authorization);
+  if (!token || !timingSafeStringEqual(token, context.config.releaseWebhookSecret)) {
+    sendJson(response, 401, { error: "release_webhook_unauthorized" });
+    return;
+  }
+  const body = await readJson(request);
+  const version = asString(body.version);
+  const installerUrl = asString(body.installer_url) || asString(body.installerUrl);
+  if (!version || !installerUrl) return sendJson(response, 400, { error: "version_and_installer_url_required" });
+  const release = await context.store.createRelease({
+    version,
+    channel: asString(body.channel) || "stable",
+    installerUrl,
+    portableUrl: asString(body.portable_url) || asString(body.portableUrl) || undefined,
+    sha256: asString(body.sha256) || undefined,
+    size: Number.isFinite(Number(body.size)) ? Number(body.size) : undefined,
+    notes: asString(body.release_notes) || asString(body.notes) || ""
+  });
+  await addAudit(context, "release_bot", "github_actions", "release_published", release.id, {
+    version: release.version,
+    channel: release.channel,
+    installerUrl: release.installerUrl,
+    sha256: release.sha256,
+    size: release.size
+  });
   sendJson(response, 201, { release });
 }
 
@@ -431,7 +489,7 @@ function quotaRemaining(user: UserRecord): number {
 }
 
 function releaseToPayload(release: Awaited<ReturnType<MiniPetStore["latestRelease"]>>, config: BackendConfig): JsonRecord {
-  const installerUrl = release?.installerUrl || `${config.downloadOrigin.replace(/\/+$/, "")}/MiniPetSetup.exe`;
+  const installerUrl = release?.installerUrl || `${config.downloadOrigin.replace(/\/+$/, "")}/latest/MiniPetSetup.exe`;
   return {
     version: release?.version || config.releaseVersion,
     channel: release?.channel || "stable",
@@ -440,7 +498,9 @@ function releaseToPayload(release: Awaited<ReturnType<MiniPetStore["latestReleas
     portableUrl: release?.portableUrl,
     sha256: release?.sha256,
     size: release?.size,
-    notes: release?.notes || config.releaseNotes
+    release_notes: release?.notes || config.releaseNotes,
+    notes: release?.notes || config.releaseNotes,
+    published_at: release?.createdAt
   };
 }
 
@@ -451,9 +511,34 @@ async function readJson(request: http.IncomingMessage): Promise<JsonRecord> {
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as JsonRecord;
 }
 
+async function serveAdminAsset(response: http.ServerResponse, fileName: "index.html" | "app.js" | "styles.css"): Promise<void> {
+  return serveStaticAsset(response, ADMIN_ASSET_ROOT, fileName);
+}
+
+async function serveWebsiteAsset(response: http.ServerResponse, fileName: "index.html" | "app.js" | "styles.css"): Promise<void> {
+  return serveStaticAsset(response, WEBSITE_ASSET_ROOT, fileName);
+}
+
+async function serveStaticAsset(response: http.ServerResponse, root: string, fileName: "index.html" | "app.js" | "styles.css"): Promise<void> {
+  const filePath = path.join(root, fileName);
+  try {
+    const content = await fs.readFile(filePath);
+    response.writeHead(200, { "Content-Type": contentType(fileName) });
+    response.end(content);
+  } catch {
+    sendJson(response, 500, { error: "static_asset_not_found" });
+  }
+}
+
 function sendJson(response: http.ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(body));
+}
+
+function contentType(fileName: string): string {
+  if (fileName.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (fileName.endsWith(".css")) return "text/css; charset=utf-8";
+  return "text/html; charset=utf-8";
 }
 
 function applyCors(config: BackendConfig, response: http.ServerResponse): void {
@@ -491,6 +576,12 @@ async function addAudit(context: RequestContext, actorType: string, actorId: str
 
 function logError(event: string, value: unknown): void {
   console.error(event, redactSensitive(value));
+}
+
+function timingSafeStringEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 class FixedWindowLimiter {

@@ -42,7 +42,7 @@ describe("MiniPet backend API", () => {
     const releaseResponse = await fetch(`${base}/v1/releases/latest`);
     await expect(releaseResponse.json()).resolves.toMatchObject({
       version: "9.9.9",
-      downloadUrl: "https://download.minipet.versecraft.cn/MiniPetSetup.exe"
+      downloadUrl: "https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe"
     });
 
     const chatResponse = await postJson(
@@ -138,6 +138,12 @@ describe("MiniPet backend API", () => {
     const userId = users.users[0].id;
 
     await expect(fetch(`${base}/admin/overview`, { headers: adminHeaders }).then((response) => response.json())).resolves.toMatchObject({ totalUsers: 1, totalRequests: 1 });
+    await expect(fetch(`${base}/admin/overview`, { headers: adminHeaders }).then((response) => response.json())).resolves.toMatchObject({
+      todayNewUsers: 1,
+      todayRequests: 1,
+      todayTokens: 10,
+      defaultQuotaTokens: 2_000_000
+    });
     await expect(fetch(`${base}/admin/users/${userId}`, { headers: adminHeaders }).then((response) => response.json())).resolves.toMatchObject({ user: { id: userId } });
     await expect(fetch(`${base}/admin/usage`, { headers: adminHeaders }).then((response) => response.json())).resolves.toMatchObject({ usage: [{ totalTokens: 10 }] });
 
@@ -145,6 +151,8 @@ describe("MiniPet backend API", () => {
     await expect(quota100k.json()).resolves.toMatchObject({ user: { quotaTotalTokens: 100_000 } });
     const quota5m = await patchJson(`${base}/admin/users/${userId}/quota`, { quota_total_tokens: 5_000_000 }, adminHeaders);
     await expect(quota5m.json()).resolves.toMatchObject({ user: { quotaTotalTokens: 5_000_000 } });
+    const resetQuota = await postJson(`${base}/admin/users/${userId}/reset-quota`, {}, adminHeaders);
+    await expect(resetQuota.json()).resolves.toMatchObject({ user: { quotaUsedTokens: 0 } });
 
     const releaseResponse = await postJson(
       `${base}/admin/releases`,
@@ -163,6 +171,89 @@ describe("MiniPet backend API", () => {
     );
     expect(blockedChat.status).toBe(403);
     await expect(fetch(`${base}/admin/audit-logs`, { headers: adminHeaders }).then((response) => response.json())).resolves.toMatchObject({ auditLogs: expect.any(Array) });
+  });
+
+  it("allows GitHub Actions to publish releases through a bearer webhook", async () => {
+    const { base } = await startBackend({ releaseWebhookSecret: "release-fixture" });
+
+    const unauthorized = await postJson(`${base}/admin/releases/publish`, {
+      version: "2.0.0",
+      channel: "stable",
+      installer_url: "https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe"
+    });
+    expect(unauthorized.status).toBe(401);
+
+    const published = await postJson(
+      `${base}/admin/releases/publish`,
+      {
+        version: "2.0.0",
+        channel: "stable",
+        installer_url: "https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe",
+        sha256: "abc123",
+        size: 123456,
+        release_notes: "release from workflow"
+      },
+      { Authorization: "Bearer release-fixture" }
+    );
+    expect(published.status).toBe(201);
+    await expect(published.json()).resolves.toMatchObject({ release: { version: "2.0.0", sha256: "abc123", size: 123456, notes: "release from workflow" } });
+
+    const latest = await fetch(`${base}/v1/releases/latest`);
+    await expect(latest.json()).resolves.toMatchObject({
+      version: "2.0.0",
+      downloadUrl: "https://download.minipet.versecraft.cn/latest/MiniPetSetup.exe",
+      sha256: "abc123",
+      size: 123456,
+      release_notes: "release from workflow"
+    });
+  });
+
+  it("serves the browser admin console", async () => {
+    const { base } = await startBackend({
+      adminEmail: "admin@example.com",
+      adminPassword: "local-pass"
+    });
+    const html = await fetch(`${base}/admin`);
+    expect(html.status).toBe(200);
+    await expect(html.text()).resolves.toContain("MiniPet Admin");
+
+    const js = await fetch(`${base}/admin/app.js`);
+    expect(js.status).toBe(200);
+    const jsText = await js.text();
+    expect(jsText).toContain("/admin/users");
+    expect(jsText).toContain("账号暂不可用");
+
+    const css = await fetch(`${base}/admin/styles.css`);
+    expect(css.status).toBe(200);
+    await expect(css.text()).resolves.toContain(".app-shell");
+  });
+
+  it("serves the public download website", async () => {
+    const { base } = await startBackend({
+      releaseVersion: "1.0.0",
+      releaseNotes: "public website release"
+    });
+    const html = await fetch(`${base}/`);
+    expect(html.status).toBe(200);
+    const htmlText = await html.text();
+    expect(htmlText).toContain("MiniPet");
+    expect(htmlText).toContain("Windows 10 / Windows 11");
+    expect(htmlText).toContain("默认不需要配置 API Key");
+    expect(htmlText).toContain("隐私政策");
+    expect(htmlText).toContain("用户协议");
+
+    const js = await fetch(`${base}/website/app.js`);
+    expect(js.status).toBe(200);
+    const jsText = await js.text();
+    expect(jsText).toContain("/v1/releases/latest");
+    expect(jsText).toContain("https://download.minipet.versecraft.cn/latest/latest.json");
+    expect(jsText).toContain("download.minipet.versecraft.cn");
+    expect(jsText).toContain("sha256");
+    expect(jsText).toContain("formatBytes");
+
+    const css = await fetch(`${base}/website/styles.css`);
+    expect(css.status).toBe(200);
+    await expect(css.text()).resolves.toContain(".hero");
   });
 });
 

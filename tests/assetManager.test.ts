@@ -2,16 +2,34 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { AssetManager, guessPetState, isPathInside, normalizePetStateKey, PET_STATE_KEYS } from "../src/main/assetManager";
+import {
+  AssetManager,
+  guessPetState,
+  isPathInside,
+  normalizePetStateKey,
+  PET_STATE_KEYS,
+  REQUESTED_PET_ASSET_FILES
+} from "../src/main/assetManager";
 
 describe("AssetManager", () => {
   it("guesses the requested MiniPet states from asset names", () => {
-    expect(guessPetState("Idle_Welcome.png")).toBe("idle_welcome");
-    expect(guessPetState("Thinking.png")).toBe("thinking");
-    expect(guessPetState("Working_Guide.png")).toBe("working_guide");
-    expect(guessPetState("Success_Cheer.png")).toBe("success_cheer");
-    expect(guessPetState("Reminder_Warning.png")).toBe("reminder_warning");
-    expect(guessPetState("pet_dragging.png")).toBe("dragging");
+    for (const [state, fileName] of Object.entries(REQUESTED_PET_ASSET_FILES)) {
+      expect(guessPetState(fileName)).toBe(state);
+    }
+  });
+
+  it("keeps the bundled reference sticker set complete", async () => {
+    const referenceDir = path.resolve("design", "one");
+    for (const fileName of Object.values(REQUESTED_PET_ASSET_FILES)) {
+      await expect(fs.stat(path.join(referenceDir, fileName))).resolves.toMatchObject({ size: expect.any(Number) });
+    }
+
+    const manager = new AssetManager();
+    const manifest = await manager.scan(referenceDir);
+    for (const [state, fileName] of Object.entries(REQUESTED_PET_ASSET_FILES)) {
+      const asset = manifest.assets.find((candidate) => candidate.id === manifest.mapping[state as keyof typeof REQUESTED_PET_ASSET_FILES]);
+      expect(asset?.fileName).toBe(fileName);
+    }
   });
 
   it("normalizes legacy state keys without losing saved mappings", () => {

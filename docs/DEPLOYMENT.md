@@ -3,7 +3,7 @@
 ## Product Flow
 
 1. User opens `https://minipet.versecraft.cn`.
-2. The landing page links to `https://download.minipet.versecraft.cn/MiniPetSetup.exe`.
+2. The landing page at `/` loads `/v1/releases/latest`, shows the current version, SHA256, file size, and links the download button to the latest `installer_url`.
 3. The Windows installer installs MiniPet and runs it after finish.
 4. MiniPet appears on the desktop and introduces itself.
 5. Basic AI chat uses the MiniPet cloud API, with no local URL/API Key/NewAPI/OpenClaw setup.
@@ -19,15 +19,18 @@ Deploy this repository with the included `Dockerfile`.
 - Set the production variables from `docs/ENV_REQUIRED.md`.
 - Point `minipet.versecraft.cn` and `api.minipet.versecraft.cn` at this service, or deploy two Coolify apps with the same image if you prefer separate hostnames.
 - The production API entrypoint is `apps/backend/src/index.ts`, compiled by `pnpm run build:server` into `dist-server/index.js`.
+- The public website is served from `apps/website` at `/`; the admin console is served from `apps/admin` at `/admin`.
 - Use a persistent PostgreSQL database via `DATABASE_URL`. If `DATABASE_URL` is absent, the backend falls back to local SQLite under `MINIPET_DATA_DIR`; this is only suitable for local development or single-node smoke tests.
 - `JWT_SECRET` is required in production. The backend refuses production startup when it is missing.
 - Configure `NEWAPI_BASE_URL`, `NEWAPI_API_KEY`, and `NEWAPI_DEFAULT_MODEL` only on the server/Coolify side.
 
 ## Windows Installer
 
-The GitHub workflow `.github/workflows/build-windows.yml` builds `release/MiniPetSetup.exe` on `main`.
+The GitHub workflow `.github/workflows/build-windows.yml` builds `release/MiniPetSetup-${version}-x64.exe` on `main`.
 
-If Volcengine TOS secrets are configured in GitHub Secrets, the workflow uploads the installer to `MiniPetSetup.exe` in the configured bucket. Otherwise, the artifact is still available as a GitHub Actions artifact and the upload step safely skips itself.
+`pnpm run dist:win` also generates `release/latest.json` and `release/release-manifest-${version}.json` with the latest installer URL, SHA256, size, channel, release notes, and published time.
+
+`pnpm run release:upload` uploads the installer to `releases/v${version}/MiniPetSetup-${version}-x64.exe`, updates `latest/MiniPetSetup.exe`, writes `latest/latest.json`, and verifies the public CDN URLs. It requires Volcengine TOS credentials in environment variables and never prints AK/SK values.
 
 ## Security
 

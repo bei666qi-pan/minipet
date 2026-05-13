@@ -28,7 +28,7 @@ const headers = {
   host,
   "x-amz-content-sha256": payloadHash,
   "x-amz-date": amzDate,
-  "content-type": "application/vnd.microsoft.portable-executable"
+  "content-type": contentTypeFor(key)
 };
 const signedHeaders = Object.keys(headers).sort().join(";");
 const canonicalHeaders = Object.keys(headers)
@@ -67,4 +67,10 @@ function getSignatureKey(secret, date, regionName, serviceName) {
   const kRegion = hmac(kDate, regionName);
   const kService = hmac(kRegion, serviceName);
   return hmac(kService, "aws4_request");
+}
+
+function contentTypeFor(key) {
+  if (/\.json$/i.test(key)) return "application/json; charset=utf-8";
+  if (/\.ya?ml$/i.test(key)) return "application/yaml; charset=utf-8";
+  return "application/vnd.microsoft.portable-executable";
 }
