@@ -55,4 +55,16 @@ jobs:
           VOLCENGINE_TOS_ENDPOINT: ${{ secrets.VOLCENGINE_TOS_ENDPOINT }}
           MINIPET_DOWNLOAD_ORIGIN: https://download.minipet.versecraft.cn
         shell: pwsh
-        run: node scripts/upload-release-to-tos.mjs
+        run: |
+          $required = @(
+            "VOLCENGINE_ACCESS_KEY_ID",
+            "VOLCENGINE_SECRET_ACCESS_KEY",
+            "VOLCENGINE_TOS_BUCKET",
+            "VOLCENGINE_TOS_ENDPOINT"
+          )
+          $missing = $required | Where-Object { -not (Get-Item "Env:$_" -ErrorAction SilentlyContinue).Value }
+          if ($missing.Count -gt 0) {
+            Write-Host "Skipping TOS publish because required secrets are not configured: $($missing -join ', ')"
+            exit 0
+          }
+          node scripts/upload-release-to-tos.mjs
