@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import https from "node:https";
 import path from "node:path";
 
 const required = ["VOLCENGINE_ACCESS_KEY_ID", "VOLCENGINE_SECRET_ACCESS_KEY", "VOLCENGINE_TOS_BUCKET", "VOLCENGINE_TOS_ENDPOINT"];
@@ -27,6 +28,8 @@ const versionedUrl = `${cdnOrigin}/${versionedKey}`;
 const latestInstallerUrl = `${cdnOrigin}/${latestInstallerKey}`;
 const latestJsonUrl = `${cdnOrigin}/${latestJsonKey}`;
 const publishedAt = new Date().toISOString();
+const uploadTimeoutMs = Number(process.env.VOLCENGINE_TOS_UPLOAD_TIMEOUT_MS || 15 * 60 * 1000);
+const uploadAttempts = Number(process.env.VOLCENGINE_TOS_UPLOAD_ATTEMPTS || 3);
 const latestManifest = {
   version,
   channel,
@@ -119,12 +122,14 @@ async function putObject(key, body, contentType) {
   const signingKey = getSignatureKey(secretAccessKey, dateStamp, region, "s3");
   const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex");
   const authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  const response = await fetch(`https://${host}/${encodedKey}`, {
-    method: "PUT",
-    headers: { ...headers, authorization },
-    body
+  const url = new URL(`https://${host}/${encodedKey}`);
+  const uploadHeaders = { ...headers, authorization, "content-length": String(body.length) };
+  const response = await retry(`tos_upload_${key}`, uploadAttempts, async () => {
+    const result = await requestBuffer(url, { method: "PUT", headers: uploadHeaders, timeoutMs: uploadTimeoutMs }, body);
+    if (result.statusCode >= 500) throw new Error(`tos_upload_retryable_${result.statusCode}_${key}`);
+    return result;
   });
-  if (!response.ok) throw new Error(`tos_upload_failed_${response.status}_${key}`);
+  if (response.statusCode < 200 || response.statusCode >= 300) throw new Error(`tos_upload_failed_${response.statusCode}_${key}`);
   console.log("tos_object_uploaded", { key, bytes: body.length });
 }
 
@@ -160,6 +165,52 @@ function sha256Hex(value) {
 
 function hmac(key, value) {
   return crypto.createHmac("sha256", key).update(value).digest();
+}
+
+async function retry(label, attempts, operation) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts) break;
+      console.warn("tos_retry", { label, attempt, message: error instanceof Error ? error.message : String(error) });
+      await sleep(attempt * 2_000);
+    }
+  }
+  throw lastError;
+}
+
+function requestBuffer(url, options, body) {
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      url,
+      {
+        method: options.method,
+        headers: options.headers,
+        timeout: options.timeoutMs
+      },
+      (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+        response.on("end", () => {
+          resolve({
+            statusCode: response.statusCode || 0,
+            headers: response.headers,
+            body: Buffer.concat(chunks).toString("utf8")
+          });
+        });
+      }
+    );
+    request.on("timeout", () => request.destroy(new Error(`request_timeout_${options.timeoutMs}`)));
+    request.on("error", reject);
+    request.end(body);
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getSignatureKey(secret, date, regionName, serviceName) {
