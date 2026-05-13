@@ -47,6 +47,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish installer to TOS when secrets are configured
+        if: github.event_name == 'workflow_dispatch'
         env:
           VOLCENGINE_ACCESS_KEY_ID: ${{ secrets.VOLCENGINE_ACCESS_KEY_ID }}
           VOLCENGINE_SECRET_ACCESS_KEY: ${{ secrets.VOLCENGINE_SECRET_ACCESS_KEY }}

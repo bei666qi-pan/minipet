@@ -99,32 +99,32 @@ async function putObject(key, body, contentType) {
   const bucket = process.env.VOLCENGINE_TOS_BUCKET;
   const region = process.env.VOLCENGINE_TOS_REGION || "cn-beijing";
   const endpoint = process.env.VOLCENGINE_TOS_ENDPOINT.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
   const host = `${bucket}.${endpoint}`;
   const encodedKey = key.split("/").map(encodeURIComponent).join("/");
-  const payloadHash = sha256Hex(body);
-  const headers = {
-    host,
-    "x-amz-content-sha256": payloadHash,
-    "x-amz-date": amzDate,
-    "content-type": contentType
-  };
-  const signedHeaders = Object.keys(headers).sort().join(";");
-  const canonicalHeaders = Object.keys(headers)
-    .sort()
-    .map((name) => `${name}:${headers[name]}\n`)
-    .join("");
-  const canonicalRequest = ["PUT", `/${encodedKey}`, "", canonicalHeaders, signedHeaders, payloadHash].join("\n");
-  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
-  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, credentialScope, sha256Hex(canonicalRequest)].join("\n");
-  const signingKey = getSignatureKey(secretAccessKey, dateStamp, region, "s3");
-  const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex");
-  const authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
   const url = new URL(`https://${host}/${encodedKey}`);
-  const uploadHeaders = { ...headers, authorization, "content-length": String(body.length) };
   const response = await retry(`tos_upload_${key}`, uploadAttempts, async () => {
+    const now = new Date();
+    const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+    const dateStamp = amzDate.slice(0, 8);
+    const payloadHash = sha256Hex(body);
+    const headers = {
+      host,
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": amzDate,
+      "content-type": contentType
+    };
+    const signedHeaders = Object.keys(headers).sort().join(";");
+    const canonicalHeaders = Object.keys(headers)
+      .sort()
+      .map((name) => `${name}:${headers[name]}\n`)
+      .join("");
+    const canonicalRequest = ["PUT", `/${encodedKey}`, "", canonicalHeaders, signedHeaders, payloadHash].join("\n");
+    const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
+    const stringToSign = ["AWS4-HMAC-SHA256", amzDate, credentialScope, sha256Hex(canonicalRequest)].join("\n");
+    const signingKey = getSignatureKey(secretAccessKey, dateStamp, region, "s3");
+    const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex");
+    const authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+    const uploadHeaders = { ...headers, authorization, "content-length": String(body.length) };
     const result = await requestBuffer(url, { method: "PUT", headers: uploadHeaders, timeoutMs: uploadTimeoutMs }, body);
     if (result.statusCode >= 500) throw new Error(`tos_upload_retryable_${result.statusCode}_${key}`);
     return result;
