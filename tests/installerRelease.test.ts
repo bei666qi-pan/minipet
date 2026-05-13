@@ -31,7 +31,9 @@ describe("Windows installer and release publishing", () => {
     expect(uploadScript).toContain("releases/v${version}");
     expect(uploadScript).toContain("latest/MiniPetSetup.exe");
     expect(uploadScript).toContain("latest/latest.json");
-    expect(uploadScript).toContain("latest_installer_sha256_mismatch");
+    expect(uploadScript).toContain("latest_json_sha256_mismatch");
+    expect(uploadScript).toContain("latest_installer_size_mismatch");
+    expect(uploadScript).toContain("request_timeout_");
 
     const workflow = fs.readFileSync(path.join(process.cwd(), ".github/workflows/build-windows.yml"), "utf8");
     expect(workflow).toContain("release/MiniPetSetup-*-x64.exe");
