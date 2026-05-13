@@ -16,9 +16,6 @@ RUN pnpm run build:server
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl \
-  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile
