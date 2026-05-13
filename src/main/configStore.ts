@@ -1,7 +1,9 @@
+import * as fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
+import { REQUESTED_PET_ASSET_FILES } from "./assetManager";
 import type { PermissionMode } from "./permissions/PermissionModes";
 import type { CoreInstallState } from "./core/RuntimeInstaller";
 import { defaultRuntimeDir } from "./core/RuntimeInstaller";
@@ -43,8 +45,12 @@ export const MANAGED_API_ORIGIN = "https://api.minipet.versecraft.cn";
 
 export function defaultBundledAssetDirectory(): string {
   const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
-  if (resourcesPath) return path.join(resourcesPath, "design", "one");
-  return path.join(process.cwd() || DEFAULT_PROJECT_ROOT, "design", "one");
+  const candidates = [
+    resourcesPath ? path.join(resourcesPath, "design", "one") : undefined,
+    path.join(process.cwd() || DEFAULT_PROJECT_ROOT, "design", "one"),
+    path.join(DEFAULT_PROJECT_ROOT, "design", "one")
+  ].filter(Boolean) as string[];
+  return candidates.find(hasRequestedAssetSetSync) ?? candidates[0];
 }
 
 export const DEFAULT_SETTINGS: MiniPetSettings = {
@@ -95,10 +101,10 @@ export class ConfigStore {
       const raw = await fs.readFile(this.filePath, "utf8");
       const parsed = JSON.parse(raw) as Partial<MiniPetSettings>;
       this.settings = { ...DEFAULT_SETTINGS, ...parsed };
-      await this.ensureLocalIdentity();
+      await this.ensureLocalSettings();
     } catch {
       this.settings = { ...DEFAULT_SETTINGS };
-      await this.ensureLocalIdentity();
+      await this.ensureLocalSettings();
       await this.save();
     }
     return this.get();
@@ -119,7 +125,7 @@ export class ConfigStore {
     await fs.writeFile(this.filePath, `${JSON.stringify(this.settings, null, 2)}\n`, "utf8");
   }
 
-  private async ensureLocalIdentity(): Promise<void> {
+  private async ensureLocalSettings(): Promise<void> {
     let changed = false;
     if (!this.settings.cloudDeviceId || !/^mp_[a-f0-9]{32}$/.test(this.settings.cloudDeviceId)) {
       this.settings.cloudDeviceId = `mp_${crypto.randomBytes(16).toString("hex")}`;
@@ -133,6 +139,26 @@ export class ConfigStore {
       this.settings.aiMode = "cloud";
       changed = true;
     }
+    if (!this.settings.assetDirectory || !(await hasRequestedAssetSet(this.settings.assetDirectory))) {
+      this.settings.assetDirectory = defaultBundledAssetDirectory();
+      this.settings.assetMapping = {};
+      changed = true;
+    }
     if (changed) await this.save();
+  }
+}
+
+function hasRequestedAssetSetSync(directory: string | undefined): boolean {
+  if (!directory) return false;
+  return Object.values(REQUESTED_PET_ASSET_FILES).every((fileName) => fsSync.existsSync(path.join(directory, fileName)));
+}
+
+async function hasRequestedAssetSet(directory: string | undefined): Promise<boolean> {
+  if (!directory) return false;
+  try {
+    await Promise.all(Object.values(REQUESTED_PET_ASSET_FILES).map((fileName) => fs.access(path.join(directory, fileName))));
+    return true;
+  } catch {
+    return false;
   }
 }
